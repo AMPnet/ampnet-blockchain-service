@@ -9,4 +9,3 @@ CREATE USER blockchain WITH PASSWORD 'password';
 
 DROP USER IF EXISTS blockchain_test;
 CREATE USER blockchain_test WITH PASSWORD 'password';
-
