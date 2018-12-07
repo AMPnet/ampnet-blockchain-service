@@ -52,6 +52,8 @@ jobs:
           name: Kotlin linter
           command: gradle ktlin
 
+    # TODO: Add deploy procedure
+
 workflows:
   version: 2
   test:
