@@ -1,7 +1,7 @@
 package com.ampnet.crowdfunding.blockchain.contract.impl
 
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
-import org.omg.IOP.TransactionService
+import com.ampnet.crowdfunding.blockchain.contract.TransactionService
 import org.springframework.stereotype.Service
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
@@ -20,9 +20,9 @@ import java.math.BigInteger
 
 @Service
 class EurServiceImpl(
-        properties: ApplicationProperties, val web3j: Web3j, val transactionService: TransactionService): EurService  {
-
-    val eurAddress = properties.contracts.eurAddress
+        val properties: ApplicationProperties,
+        val web3j: Web3j
+): EurService  {
 
     override fun balanceOf(address: String): BigDecimal {
         val function = Function(
@@ -34,7 +34,7 @@ class EurServiceImpl(
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
                         address,
-                        eurAddress,
+                        properties.contracts.eurAddress,
                         encodedFunction
                 ),
                 DefaultBlockParameterName.LATEST
@@ -60,7 +60,7 @@ class EurServiceImpl(
                 txCountResponse.transactionCount,
                 gasPriceResponse.gasPrice,
                 BigInteger.valueOf(1000000),
-                eurAddress,
+                properties.contracts.eurAddress,
                 encodedFunction
         )
     }
@@ -79,7 +79,7 @@ class EurServiceImpl(
                 txCountResponse.transactionCount,
                 gasPriceResponse.gasPrice,
                 BigInteger.valueOf(1000000),
-                eurAddress,
+                properties.contracts.eurAddress,
                 encodedFunction
         )
     }
@@ -98,7 +98,7 @@ class EurServiceImpl(
                 txCountResponse.transactionCount,
                 gasPriceResponse.gasPrice,
                 BigInteger.valueOf(1000000),
-                eurAddress,
+                properties.contracts.eurAddress,
                 encodedFunction
         )
     }

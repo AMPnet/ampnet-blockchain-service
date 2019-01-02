@@ -62,7 +62,7 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation('org.flywaydb:flyway-core')
-	runtimeOnly('org.postgresql:postgresql')
+	implementation('org.postgresql:postgresql')
 	implementation('org.web3j:core:4.0.4')
 
 	implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"

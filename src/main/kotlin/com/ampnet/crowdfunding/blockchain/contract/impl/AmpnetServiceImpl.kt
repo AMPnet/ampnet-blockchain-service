@@ -7,7 +7,8 @@ import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
 import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Address
-import org.web3j.abi.datatypes.Array
+import org.web3j.abi.datatypes.Bool
+import org.web3j.abi.datatypes.DynamicArray
 import org.web3j.abi.datatypes.Function
 import org.web3j.abi.datatypes.Utf8String
 import org.web3j.crypto.RawTransaction
@@ -17,7 +18,10 @@ import org.web3j.protocol.core.methods.request.Transaction
 import java.math.BigInteger
 
 @Service
-class AmpnetServiceImpl(val applicationProperties: ApplicationProperties, val web3j: Web3j): AmpnetService {
+class AmpnetServiceImpl(
+        val applicationProperties: ApplicationProperties,
+        val web3j: Web3j
+): AmpnetService {
 
     override fun generateAddWalletTx(wallet: String, from: String): RawTransaction {
         val function = Function(
@@ -53,7 +57,7 @@ class AmpnetServiceImpl(val applicationProperties: ApplicationProperties, val we
         return RawTransaction.createTransaction(
                 txCountResponse.transactionCount,
                 gasPriceResponse.gasPrice,
-                BigInteger.valueOf(1000000),
+                BigInteger.valueOf(4000000),
                 ampnetAddress,
                 encodedFunction
         )
@@ -63,7 +67,29 @@ class AmpnetServiceImpl(val applicationProperties: ApplicationProperties, val we
         val function = Function(
                 "getAllOrganizations",
                 emptyList(),
-                listOf(TypeReference.create(Array::class.java))
+                listOf(object : TypeReference<DynamicArray<Address>>() {})
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val ampnetAddress = applicationProperties.contracts.ampnetAddress
+
+        val response = web3j.ethCall(
+                Transaction.createEthCallTransaction(
+                        "",
+                        ampnetAddress,
+                        encodedFunction
+                ),
+                DefaultBlockParameterName.LATEST
+        ).send()
+        val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
+        val organizations = returnValues[0].value as List<Address>
+        return organizations.map { it.toString() }
+    }
+
+    override fun isWalletActive(wallet: String): Bool {
+        val function = Function(
+                "isWalletActive",
+                listOf(Address(wallet)),
+                listOf(TypeReference.create(Bool::class.java))
         )
         val encodedFunction = FunctionEncoder.encode(function)
         val ampnetAddress = applicationProperties.contracts.ampnetAddress
@@ -78,6 +104,7 @@ class AmpnetServiceImpl(val applicationProperties: ApplicationProperties, val we
         ).send()
 
         val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
-        return emptyList()
+
+        return returnValues[0] as Bool
     }
 }
