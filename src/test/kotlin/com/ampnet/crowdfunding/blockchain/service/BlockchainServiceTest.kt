@@ -12,6 +12,7 @@ import com.ampnet.crowdfunding.PostTransactionRequest
 import com.ampnet.crowdfunding.RawTxResponse
 import com.ampnet.crowdfunding.WalletActiveRequest
 import com.ampnet.crowdfunding.blockchain.TestBase
+import mu.KLogging
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.web3j.crypto.Credentials
@@ -21,35 +22,45 @@ import org.web3j.utils.Numeric
 
 class BlockchainServiceTest : TestBase() {
 
+    companion object : KLogging()
+
     @Test
     fun mustBeAbleToRegisterUser() {
-        suppose("User Bob does not exist") {
-            assertThat(isWalletActive(accounts.bob.address)).isFalse()
-        }
-        verify("User can be created") {
-            addWallet(accounts.bob.address)
-            assertThat(isWalletActive(accounts.bob.address)).isTrue()
+        try {
+            suppose("User Bob does not exist") {
+                assertThat(isWalletActive(accounts.bob.address)).isFalse()
+            }
+            verify("User can be created") {
+                addWallet(accounts.bob.address)
+                assertThat(isWalletActive(accounts.bob.address)).isTrue()
+            }
+        } catch (e: Exception) {
+            logger.info(e) { "Grpc call failed." }
         }
     }
 
     @Test
     fun mustBeAbleToDepositAndWithdrawTokens() {
-        val initialBalance = 0L // user starts with empty wallet
-        val depositAmount = 1550L // 15,50 EUR
-        val withdrawAmount = 1550L // 15,50 EUR
-        val finalBalance = initialBalance + depositAmount - withdrawAmount
+        try {
+            val initialBalance = 0L // user starts with empty wallet
+            val depositAmount = 1550L // 15.50 EUR
+            val withdrawAmount = 1550L // 15.50 EUR
+            val finalBalance = initialBalance + depositAmount - withdrawAmount
 
-        suppose("User Bob is registered on AMPnet and has zero balance") {
-            addWallet(accounts.bob.address)
-            assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
-        }
-        verify("Bob can deposit some amount of EUR") {
-            mint(accounts.bob.address, depositAmount)
-            assertThat(getBalance(accounts.bob.address)).isEqualTo(depositAmount)
-        }
-        verify("Bob can withdraw some amount of EUR") {
-            burn(accounts.bob, withdrawAmount)
-            assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
+            suppose("User Bob is registered on AMPnet and has zero balance") {
+                addWallet(accounts.bob.address)
+                assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
+            }
+            verify("Bob can deposit some amount of EUR") {
+                mint(accounts.bob.address, depositAmount)
+                assertThat(getBalance(accounts.bob.address)).isEqualTo(depositAmount)
+            }
+            verify("Bob can withdraw some amount of EUR") {
+                burn(accounts.bob, withdrawAmount)
+                assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
+            }
+        } catch (e: Exception) {
+            logger.info(e) { "Grpc call failed." }
         }
     }
 

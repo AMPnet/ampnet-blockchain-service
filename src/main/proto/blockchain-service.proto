@@ -4,7 +4,7 @@ package com.ampnet.crowdfunding;
 
 /********** IMPORTANT NOTE:***************
 All amount (fiat) values in request and response messages are x100 format integers,
-for example amount: 1550 is actually 15,50 EUR.
+for example amount: 1550 is actually 15.50 EUR.
 ******************************************/
 
 //////// AMPnet contract messages ///////
