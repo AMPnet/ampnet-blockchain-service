@@ -18,7 +18,6 @@ import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
 import org.web3j.utils.Numeric
-import java.math.BigDecimal
 
 class BlockchainServiceTest : TestBase() {
 
@@ -35,18 +34,22 @@ class BlockchainServiceTest : TestBase() {
 
     @Test
     fun mustBeAbleToDepositAndWithdrawTokens() {
+        val initialBalance = 0L // user starts with empty wallet
+        val depositAmount = 1550L // 15,50 EUR
+        val withdrawAmount = 1550L // 15,50 EUR
+        val finalBalance = initialBalance + depositAmount - withdrawAmount
+
         suppose("User Bob is registered on AMPnet and has zero balance") {
             addWallet(accounts.bob.address)
-            assertThat(getBalance(accounts.bob.address)).isEqualTo(BigDecimal.ZERO)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
         }
         verify("Bob can deposit some amount of EUR") {
-            val depositAmount = "1000.99"
             mint(accounts.bob.address, depositAmount)
-            assertThat(getBalance(accounts.bob.address)).isEqualTo(BigDecimal(depositAmount))
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(depositAmount)
         }
         verify("Bob can withdraw some amount of EUR") {
-            burn(accounts.bob, "1000.99")
-            assertThat(getBalance(accounts.bob.address)).isEqualTo(BigDecimal.ZERO)
+            burn(accounts.bob, withdrawAmount)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
         }
     }
 
@@ -66,7 +69,7 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-    private fun mint(to: String, amount: String) {
+    private fun mint(to: String, amount: Long) {
         val tx = grpc.generateMintTx(
                 GenerateMintTxRequest.newBuilder()
                         .setAmount(amount)
@@ -81,7 +84,7 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-    private fun burn(from: Credentials, amount: String) {
+    private fun burn(from: Credentials, amount: Long) {
         val approveTx = grpc.generateApproveTx(
                 GenerateApproveTxRequest.newBuilder()
                         .setFrom(from.address)
@@ -143,14 +146,12 @@ class BlockchainServiceTest : TestBase() {
         ).active
     }
 
-    private fun getBalance(address: String): BigDecimal {
-        return BigDecimal(
-                grpc.getBalance(
-                        BalanceRequest.newBuilder()
-                                .setAddress(address)
-                                .build()
-                ).balance
-        )
+    private fun getBalance(address: String): Long {
+        return grpc.getBalance(
+                BalanceRequest.newBuilder()
+                        .setAddress(address)
+                        .build()
+        ).balance
     }
 
     private fun getAllOrganizations(): List<String> {

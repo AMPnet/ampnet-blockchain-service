@@ -2,6 +2,10 @@ syntax = "proto3";
 option java_multiple_files = true;
 package com.ampnet.crowdfunding;
 
+/********** IMPORTANT NOTE:***************
+All amount (fiat) values in request and response messages are x100 format integers,
+for example amount: 1550 is actually 15,50 EUR.
+******************************************/
 
 //////// AMPnet contract messages ///////
 
@@ -35,25 +39,25 @@ message BalanceRequest {
 }
 
 message BalanceResponse {
-    string balance = 1;
+    uint64 balance = 1;
 }
 
 message GenerateMintTxRequest {
     string from = 1;
     string to = 2;
-    string amount = 3;
+    uint64 amount = 3;
 }
 
 message GenerateBurnFromTxRequest {
     string from = 1;
     string burnFrom = 2;
-    string amount = 3;
+    uint64 amount = 3;
 }
 
 message GenerateApproveTxRequest {
     string from = 1;
     string approve = 2;
-    string amount = 3;
+    uint64 amount = 3;
 }
 
 
@@ -81,10 +85,10 @@ message PostTransactionResponse {
 message RawTxResponse {
     string data = 1;
     string to = 2;
-    int64 nonce = 3;
-    int64 gasLimit = 4;
-    int64 gasPrice = 5;
-    int64 value = 6;
+    uint64 nonce = 3;
+    uint64 gasLimit = 4;
+    uint64 gasPrice = 5;
+    uint64 value = 6;
 }
 
 message Empty {

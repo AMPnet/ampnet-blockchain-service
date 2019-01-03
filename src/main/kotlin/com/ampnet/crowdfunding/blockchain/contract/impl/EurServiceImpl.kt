@@ -13,8 +13,6 @@ import org.web3j.crypto.RawTransaction
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.methods.request.Transaction
-import org.web3j.utils.Convert
-import java.math.BigDecimal
 import java.math.BigInteger
 
 @Service
@@ -23,7 +21,7 @@ class EurServiceImpl(
     val web3j: Web3j
 ) : EurService {
 
-    override fun balanceOf(address: String): BigDecimal {
+    override fun balanceOf(address: String): BigInteger {
         val function = Function(
                 "balanceOf",
                 listOf(Address(address)),
@@ -41,14 +39,13 @@ class EurServiceImpl(
 
         val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
         val balance = returnValues[0] as Uint256
-        val balanceBigDecimal = balance.value.toBigDecimal()
-        return Convert.fromWei(balanceBigDecimal, Convert.Unit.ETHER)
+        return balance.value
     }
 
-    override fun generateMintTransaction(from: String, to: String, amount: BigDecimal): RawTransaction {
+    override fun generateMintTransaction(from: String, to: String, amount: BigInteger): RawTransaction {
         val function = Function(
                 "mint",
-                listOf(Address(to), Uint256(amount.longValueExact())),
+                listOf(Address(to), Uint256(amount)),
                 listOf(TypeReference.create(Bool::class.java))
         )
         val encodedFunction = FunctionEncoder.encode(function)
@@ -64,10 +61,10 @@ class EurServiceImpl(
         )
     }
 
-    override fun generateBurnFromTransaction(from: String, burnFrom: String, amount: BigDecimal): RawTransaction {
+    override fun generateBurnFromTransaction(from: String, burnFrom: String, amount: BigInteger): RawTransaction {
         val function = Function(
                 "burnFrom",
-                listOf(Address(burnFrom), Uint256(amount.longValueExact())),
+                listOf(Address(burnFrom), Uint256(amount)),
                 listOf(TypeReference.create(Bool::class.java))
         )
         val encodedFunction = FunctionEncoder.encode(function)
@@ -83,10 +80,10 @@ class EurServiceImpl(
         )
     }
 
-    override fun generateApproveTransaction(from: String, approve: String, amount: BigDecimal): RawTransaction {
+    override fun generateApproveTransaction(from: String, approve: String, amount: BigInteger): RawTransaction {
         val function = Function(
                 "approve",
-                listOf(Address(approve), Uint256(amount.longValueExact())),
+                listOf(Address(approve), Uint256(amount)),
                 emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)

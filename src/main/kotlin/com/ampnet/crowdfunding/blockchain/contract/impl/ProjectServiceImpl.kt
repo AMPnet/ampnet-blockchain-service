@@ -9,7 +9,6 @@ import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.RawTransaction
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameterName
-import java.math.BigDecimal
 import java.math.BigInteger
 
 @Service
@@ -19,11 +18,11 @@ class ProjectServiceImpl(val web3j: Web3j) : ProjectService {
         project: String,
         from: String,
         tokenIssuer: String,
-        amount: BigDecimal
+        amount: BigInteger
     ): RawTransaction {
         val function = Function(
                 "withdrawFunds",
-                listOf(Address(tokenIssuer), Uint256(amount.longValueExact())),
+                listOf(Address(tokenIssuer), Uint256(amount)),
                 emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)

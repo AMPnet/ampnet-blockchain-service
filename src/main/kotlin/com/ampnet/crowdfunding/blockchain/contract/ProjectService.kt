@@ -1,7 +1,7 @@
 package com.ampnet.crowdfunding.blockchain.contract
 
 import org.web3j.crypto.RawTransaction
-import java.math.BigDecimal
+import java.math.BigInteger
 
 interface ProjectService {
 
@@ -9,6 +9,6 @@ interface ProjectService {
         project: String,
         from: String,
         tokenIssuer: String,
-        amount: BigDecimal
+        amount: BigInteger
     ): RawTransaction
 }
