@@ -20,7 +20,7 @@ import org.web3j.crypto.TransactionEncoder
 import org.web3j.utils.Numeric
 import java.math.BigDecimal
 
-class BlockchainServiceTest: TestBase() {
+class BlockchainServiceTest : TestBase() {
 
     @Test
     fun mustBeAbleToRegisterUser() {
@@ -172,5 +172,4 @@ class BlockchainServiceTest: TestBase() {
                 TransactionEncoder.signMessage(rawTx, credentials)
         )
     }
-
 }

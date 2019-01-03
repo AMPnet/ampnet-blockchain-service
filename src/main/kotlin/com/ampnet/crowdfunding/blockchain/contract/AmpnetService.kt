@@ -12,5 +12,4 @@ interface AmpnetService {
     fun getAllOrganizations(): List<String>
 
     fun isWalletActive(wallet: String): Bool
-
 }

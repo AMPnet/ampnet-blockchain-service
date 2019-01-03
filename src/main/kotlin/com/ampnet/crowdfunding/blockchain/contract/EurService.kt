@@ -12,5 +12,4 @@ interface EurService {
     fun generateApproveTransaction(from: String, approve: String, amount: BigDecimal): RawTransaction
 
     fun balanceOf(address: String): BigDecimal
-
 }

@@ -19,9 +19,9 @@ import java.math.BigInteger
 
 @Service
 class AmpnetServiceImpl(
-        val applicationProperties: ApplicationProperties,
-        val web3j: Web3j
-): AmpnetService {
+    val applicationProperties: ApplicationProperties,
+    val web3j: Web3j
+) : AmpnetService {
 
     override fun generateAddWalletTx(wallet: String, from: String): RawTransaction {
         val function = Function(

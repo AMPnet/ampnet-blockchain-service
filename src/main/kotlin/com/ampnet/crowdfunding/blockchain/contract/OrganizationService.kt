@@ -12,13 +12,12 @@ interface OrganizationService {
     fun generateAddMemberTx(organization: String, from: String, member: String): RawTransaction
 
     fun generateAddProjectTx(
-            organization: String,
-            from: String,
-            name: String,
-            description: String,
-            maxInvestmentPerUser: BigDecimal,
-            minInvestmentPerUser: BigDecimal,
-            investmentCap: BigDecimal
+        organization: String,
+        from: String,
+        name: String,
+        description: String,
+        maxInvestmentPerUser: BigDecimal,
+        minInvestmentPerUser: BigDecimal,
+        investmentCap: BigDecimal
     ): RawTransaction
-
 }

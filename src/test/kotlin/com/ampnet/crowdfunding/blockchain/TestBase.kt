@@ -87,7 +87,6 @@ abstract class TestBase {
         grpc = BlockchainServiceGrpc.newBlockingStub(channel)
     }
 
-
     private fun shutdownGrpc() {
         channel.shutdown()
         server.shutdown()
@@ -188,5 +187,4 @@ abstract class TestBase {
                 )
         ).send()
     }
-
 }

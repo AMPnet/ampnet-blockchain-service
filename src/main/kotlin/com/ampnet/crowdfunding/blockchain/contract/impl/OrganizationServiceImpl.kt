@@ -14,7 +14,7 @@ import java.math.BigDecimal
 import java.math.BigInteger
 
 @Service
-class OrganizationServiceImpl(val web3j: Web3j): OrganizationService {
+class OrganizationServiceImpl(val web3j: Web3j) : OrganizationService {
 
     override fun generateActivateTx(organization: String, from: String): RawTransaction {
         val function = Function(
@@ -74,13 +74,13 @@ class OrganizationServiceImpl(val web3j: Web3j): OrganizationService {
     }
 
     override fun generateAddProjectTx(
-            organization: String,
-            from: String,
-            name: String,
-            description: String,
-            maxInvestmentPerUser: BigDecimal,
-            minInvestmentPerUser: BigDecimal,
-            investmentCap: BigDecimal
+        organization: String,
+        from: String,
+        name: String,
+        description: String,
+        maxInvestmentPerUser: BigDecimal,
+        minInvestmentPerUser: BigDecimal,
+        investmentCap: BigDecimal
     ): RawTransaction {
         val function = Function(
                 "addProject",
@@ -104,6 +104,5 @@ class OrganizationServiceImpl(val web3j: Web3j): OrganizationService {
                 organization,
                 encodedFunction
         )
-
     }
 }

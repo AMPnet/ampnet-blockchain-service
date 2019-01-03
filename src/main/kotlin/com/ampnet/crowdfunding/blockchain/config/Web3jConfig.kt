@@ -12,5 +12,4 @@ class Web3jConfig(val properties: ApplicationProperties) {
     fun getWeb3j(): Web3j {
         return Web3j.build(HttpService(properties.web3j.clientAddress))
     }
-
 }

@@ -6,10 +6,9 @@ import java.math.BigDecimal
 interface ProjectService {
 
     fun generateWithdrawFundsTransaction(
-            project: String,
-            from: String,
-            tokenIssuer: String,
-            amount: BigDecimal
+        project: String,
+        from: String,
+        tokenIssuer: String,
+        amount: BigDecimal
     ): RawTransaction
-
 }

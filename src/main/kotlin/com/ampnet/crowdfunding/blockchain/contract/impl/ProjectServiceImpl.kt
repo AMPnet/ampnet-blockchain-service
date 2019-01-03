@@ -13,13 +13,13 @@ import java.math.BigDecimal
 import java.math.BigInteger
 
 @Service
-class ProjectServiceImpl(val web3j: Web3j): ProjectService {
+class ProjectServiceImpl(val web3j: Web3j) : ProjectService {
 
     override fun generateWithdrawFundsTransaction(
-            project: String,
-            from: String,
-            tokenIssuer: String,
-            amount: BigDecimal
+        project: String,
+        from: String,
+        tokenIssuer: String,
+        amount: BigDecimal
     ): RawTransaction {
         val function = Function(
                 "withdrawFunds",
@@ -38,5 +38,4 @@ class ProjectServiceImpl(val web3j: Web3j): ProjectService {
                 encodedFunction
         )
     }
-
 }

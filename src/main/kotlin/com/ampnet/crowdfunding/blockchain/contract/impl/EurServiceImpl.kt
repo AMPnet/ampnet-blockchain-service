@@ -1,7 +1,6 @@
 package com.ampnet.crowdfunding.blockchain.contract.impl
 
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
-import com.ampnet.crowdfunding.blockchain.contract.TransactionService
 import org.springframework.stereotype.Service
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
@@ -20,9 +19,9 @@ import java.math.BigInteger
 
 @Service
 class EurServiceImpl(
-        val properties: ApplicationProperties,
-        val web3j: Web3j
-): EurService  {
+    val properties: ApplicationProperties,
+    val web3j: Web3j
+) : EurService {
 
     override fun balanceOf(address: String): BigDecimal {
         val function = Function(
@@ -102,5 +101,4 @@ class EurServiceImpl(
                 encodedFunction
         )
     }
-
 }

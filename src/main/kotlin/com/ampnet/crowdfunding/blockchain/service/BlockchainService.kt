@@ -24,16 +24,15 @@ import io.grpc.stub.StreamObserver
 import org.lognet.springboot.grpc.GRpcService
 import org.web3j.crypto.RawTransaction
 import java.math.BigDecimal
-import java.math.BigInteger
 
 // TODO: - decide about amount type (uint256 in smart contracts, bigdecimal in blockchain service), where to convert?
 @GRpcService
 class BlockchainService(
-        val transactionService: TransactionService,
-        val ampnetService: AmpnetService,
-        val eurService: EurService,
-        val organizationService: OrganizationService
-): BlockchainServiceGrpc.BlockchainServiceImplBase() {
+    val transactionService: TransactionService,
+    val ampnetService: AmpnetService,
+    val eurService: EurService,
+    val organizationService: OrganizationService
+) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
     override fun generateAddWalletTx(request: GenerateAddWalletTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
         val tx = ampnetService.generateAddWalletTx(
@@ -148,5 +147,4 @@ class BlockchainService(
         val factor = 10e18.toBigDecimal()
         return String.format("%.2f", token.divide(factor))
     }
-
 }
