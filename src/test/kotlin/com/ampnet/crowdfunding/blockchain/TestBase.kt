@@ -8,8 +8,11 @@ import io.grpc.Server
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import org.assertj.core.api.Assertions
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
@@ -27,6 +30,7 @@ import java.util.concurrent.TimeUnit
 
 @SpringBootTest
 @ActiveProfiles("test")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class TestBase {
 
     class Accounts {
@@ -53,17 +57,21 @@ abstract class TestBase {
     @Autowired
     private lateinit var blockchainService: BlockchainService
 
+    @BeforeAll
+    fun beforeAll() {
+        startGrpc()
+    }
+
+    @AfterAll
+    fun afterAll() {
+        shutdownGrpc()
+    }
+
     @BeforeEach
     fun setUp() {
         deployAmpnetContract()
         deployEurContract()
         injectEurAddressToAmpnet()
-        startGrpc()
-    }
-
-    @AfterEach
-    fun tearDown() {
-        shutdownGrpc()
     }
 
     protected fun suppose(@Suppress("UNUSED_PARAMETER") description: String, function: () -> Unit) {
