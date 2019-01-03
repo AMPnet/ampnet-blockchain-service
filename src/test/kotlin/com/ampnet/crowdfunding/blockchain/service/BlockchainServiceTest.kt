@@ -21,37 +21,37 @@ import org.web3j.utils.Numeric
 
 class BlockchainServiceTest : TestBase() {
 
-    @Test
-    fun mustBeAbleToRegisterUser() {
-        suppose("User Bob does not exist") {
-            assertThat(isWalletActive(accounts.bob.address)).isFalse()
-        }
-        verify("User can be created") {
-            addWallet(accounts.bob.address)
-            assertThat(isWalletActive(accounts.bob.address)).isTrue()
-        }
-    }
-
 //    @Test
-//    fun mustBeAbleToDepositAndWithdrawTokens() {
-//        val initialBalance = 0L // user starts with empty wallet
-//        val depositAmount = 1550L // 15.50 EUR
-//        val withdrawAmount = 1550L // 15.50 EUR
-//        val finalBalance = initialBalance + depositAmount - withdrawAmount
-//
-//        suppose("User Bob is registered on AMPnet and has zero balance") {
+//    fun mustBeAbleToRegisterUser() {
+//        suppose("User Bob does not exist") {
+//            assertThat(isWalletActive(accounts.bob.address)).isFalse()
+//        }
+//        verify("User can be created") {
 //            addWallet(accounts.bob.address)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
-//        }
-//        verify("Bob can deposit some amount of EUR") {
-//            mint(accounts.bob.address, depositAmount)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(depositAmount)
-//        }
-//        verify("Bob can withdraw some amount of EUR") {
-//            burn(accounts.bob, withdrawAmount)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
+//            assertThat(isWalletActive(accounts.bob.address)).isTrue()
 //        }
 //    }
+
+    @Test
+    fun mustBeAbleToDepositAndWithdrawTokens() {
+        val initialBalance = 0L // user starts with empty wallet
+        val depositAmount = 1550L // 15.50 EUR
+        val withdrawAmount = 1550L // 15.50 EUR
+        val finalBalance = initialBalance + depositAmount - withdrawAmount
+
+        suppose("User Bob is registered on AMPnet and has zero balance") {
+            addWallet(accounts.bob.address)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
+        }
+        verify("Bob can deposit some amount of EUR") {
+            mint(accounts.bob.address, depositAmount)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(depositAmount)
+        }
+        verify("Bob can withdraw some amount of EUR") {
+            burn(accounts.bob, withdrawAmount)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
+        }
+    }
 
     /** HELPER FUNCTIONS */
 
