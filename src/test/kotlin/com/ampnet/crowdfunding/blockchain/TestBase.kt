@@ -86,10 +86,12 @@ abstract class TestBase {
         server = InProcessServerBuilder.forName(serverName)
                 .directExecutor()
                 .addService(blockchainService)
+                .handshakeTimeout(Long.MAX_VALUE, TimeUnit.SECONDS)
                 .build()
                 .start()
         channel = InProcessChannelBuilder.forName(serverName)
                 .directExecutor()
+                .enableRetry()
                 .build()
         grpc = BlockchainServiceGrpc.newBlockingStub(channel)
     }
@@ -100,11 +102,11 @@ abstract class TestBase {
 
         try {
             Assertions.assertThat(
-                    channel.awaitTermination(5, TimeUnit.SECONDS)
+                    channel.awaitTermination(10, TimeUnit.SECONDS)
             ).isTrue()
 
             Assertions.assertThat(
-                    server.awaitTermination(5, TimeUnit.SECONDS)
+                    server.awaitTermination(10, TimeUnit.SECONDS)
             ).isTrue()
         } finally {
             channel.shutdownNow()

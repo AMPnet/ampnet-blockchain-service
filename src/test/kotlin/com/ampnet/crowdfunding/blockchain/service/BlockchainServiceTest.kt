@@ -21,16 +21,16 @@ import org.web3j.utils.Numeric
 
 class BlockchainServiceTest : TestBase() {
 
-//    @Test
-//    fun mustBeAbleToRegisterUser() {
-//        suppose("User Bob does not exist") {
-//            assertThat(isWalletActive(accounts.bob.address)).isFalse()
-//        }
-//        verify("User can be created") {
-//            addWallet(accounts.bob.address)
-//            assertThat(isWalletActive(accounts.bob.address)).isTrue()
-//        }
-//    }
+    @Test
+    fun mustBeAbleToRegisterUser() {
+        suppose("User Bob does not exist") {
+            assertThat(isWalletActive(accounts.bob.address)).isFalse()
+        }
+        verify("User can be created") {
+            addWallet(accounts.bob.address)
+            assertThat(isWalletActive(accounts.bob.address)).isTrue()
+        }
+    }
 
     @Test
     fun mustBeAbleToDepositAndWithdrawTokens() {
