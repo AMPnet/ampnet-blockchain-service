@@ -74,7 +74,7 @@ class AmpnetServiceImpl(
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
-                        "",
+                        "0xfdba489e7b32073c4a86bd6a511b2586572051b6",
                         ampnetAddress,
                         encodedFunction
                 ),
@@ -96,7 +96,7 @@ class AmpnetServiceImpl(
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
-                        "",
+                        "0xfdba489e7b32073c4a86bd6a511b2586572051b6",
                         ampnetAddress,
                         encodedFunction
                 ),
