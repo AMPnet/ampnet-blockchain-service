@@ -87,6 +87,7 @@ abstract class TestBase {
                 .start()
         channel = InProcessChannelBuilder.forName(serverName)
                 .directExecutor()
+                .usePlaintext()
                 .build()
         grpc = BlockchainServiceGrpc.newBlockingStub(channel)
     }
