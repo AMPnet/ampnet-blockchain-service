@@ -42,6 +42,7 @@ class BlockchainServiceTest : TestBase() {
         suppose("User Bob is registered on AMPnet and has zero balance") {
             addWallet(accounts.bob.address)
             assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
+            assertThat(isWalletActive(accounts.bob.address)).isTrue()
         }
         verify("Bob can deposit some amount of EUR") {
             mint(accounts.bob.address, depositAmount)
