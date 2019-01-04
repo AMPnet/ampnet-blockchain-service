@@ -20,6 +20,8 @@ import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
 import com.ampnet.crowdfunding.blockchain.contract.OrganizationService
 import com.ampnet.crowdfunding.blockchain.contract.TransactionService
 import com.ampnet.crowdfunding.blockchain.contract.impl.EurService
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
 import mu.KLogging
 import org.lognet.springboot.grpc.GRpcService
@@ -59,12 +61,17 @@ class BlockchainService(
     }
 
     override fun getAllOrganizations(request: Empty, responseObserver: StreamObserver<GetAllOrganizationsResponse>) {
-        responseObserver.onNext(
-                GetAllOrganizationsResponse.newBuilder()
-                        .addAllOrganizations(ampnetService.getAllOrganizations())
-                        .build()
-        )
-        responseObserver.onCompleted()
+        try {
+            val x = 5 / 0
+            responseObserver.onNext(
+                    GetAllOrganizationsResponse.newBuilder()
+                            .addAllOrganizations(ampnetService.getAllOrganizations())
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: StatusRuntimeException) {
+            responseObserver.onError(e)
+        }
     }
 
     override fun isWalletActive(request: WalletActiveRequest, responseObserver: StreamObserver<WalletActiveResponse>) {
