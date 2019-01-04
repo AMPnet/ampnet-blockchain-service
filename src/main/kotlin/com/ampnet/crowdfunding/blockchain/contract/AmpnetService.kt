@@ -9,7 +9,7 @@ interface AmpnetService {
 
     fun generateAddOrganizationTx(name: String, from: String): RawTransaction
 
-    fun getAllOrganizations(): List<String>
+    fun getAllOrganizations(from: String): List<String>
 
-    fun isWalletActive(wallet: String): Bool
+    fun isWalletActive(from: String, wallet: String): Bool
 }

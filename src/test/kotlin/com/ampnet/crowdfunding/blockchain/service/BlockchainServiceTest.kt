@@ -1,64 +1,57 @@
 package com.ampnet.crowdfunding.blockchain.service
 
 import com.ampnet.crowdfunding.BalanceRequest
-import com.ampnet.crowdfunding.Empty
 import com.ampnet.crowdfunding.GenerateActivateTxRequest
 import com.ampnet.crowdfunding.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.GenerateAddWalletTxRequest
 import com.ampnet.crowdfunding.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.GenerateBurnFromTxRequest
 import com.ampnet.crowdfunding.GenerateMintTxRequest
+import com.ampnet.crowdfunding.GetAllOrganizationsRequest
 import com.ampnet.crowdfunding.PostTransactionRequest
 import com.ampnet.crowdfunding.RawTxResponse
 import com.ampnet.crowdfunding.WalletActiveRequest
 import com.ampnet.crowdfunding.blockchain.TestBase
-import io.grpc.StatusRuntimeException
-import mu.KLogging
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.slf4j.event.Level
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
 import org.web3j.utils.Numeric
-import java.util.logging.Logger
 
 class BlockchainServiceTest : TestBase() {
 
-    companion object : KLogging()
+    @Test
+    fun mustBeAbleToRegisterUser() {
+        suppose("User Bob does not exist") {
+            assertThat(isWalletActive(accounts.bob.address)).isFalse()
+        }
+        verify("User can be created") {
+            addWallet(accounts.bob.address)
+            assertThat(isWalletActive(accounts.bob.address)).isTrue()
+        }
+    }
 
-//    @Test
-//    fun mustBeAbleToRegisterUser() {
-//        suppose("User Bob does not exist") {
-//            //assertThat(isWalletActive(accounts.bob.address)).isFalse()
-//        }
-//        verify("User can be created") {
-//            addWallet(accounts.bob.address)
-//            //assertThat(isWalletActive(accounts.bob.address)).isTrue()
-//        }
-//    }
-//
-//    @Test
-//    fun mustBeAbleToDepositAndWithdrawTokens() {
-//        val initialBalance = 0L // user starts with empty wallet
-//        val depositAmount = 1550L // 15.50 EUR
-//        val withdrawAmount = 1550L // 15.50 EUR
-//        val finalBalance = initialBalance + depositAmount - withdrawAmount
-//
-//        suppose("User Bob is registered on AMPnet and has zero balance") {
-//            addWallet(accounts.bob.address)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
-//            //assertThat(isWalletActive(accounts.bob.address)).isTrue()
-//        }
-//        verify("Bob can deposit some amount of EUR") {
-//            mint(accounts.bob.address, depositAmount)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(depositAmount)
-//        }
-//        verify("Bob can withdraw some amount of EUR") {
-//            burn(accounts.bob, withdrawAmount)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
-//        }
-//    }
+    @Test
+    fun mustBeAbleToDepositAndWithdrawTokens() {
+        val initialBalance = 0L // user starts with empty wallet
+        val depositAmount = 1550L // 15.50 EUR
+        val withdrawAmount = 1550L // 15.50 EUR
+        val finalBalance = initialBalance + depositAmount - withdrawAmount
+
+        suppose("User Bob is registered on AMPnet and has zero balance") {
+            addWallet(accounts.bob.address)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
+        }
+        verify("Bob can deposit some amount of EUR") {
+            mint(accounts.bob.address, depositAmount)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(depositAmount)
+        }
+        verify("Bob can withdraw some amount of EUR") {
+            burn(accounts.bob, withdrawAmount)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
+        }
+    }
 
     @Test
     fun mustBeAbleToCreateAndActivateOrganization() {
@@ -67,7 +60,7 @@ class BlockchainServiceTest : TestBase() {
         }
         verify("Bob can create organization") {
             addAndApproveOrganization(accounts.bob, "Greenpeace")
-            //assertThat(getAllOrganizations()).hasSize(1)
+            assertThat(getAllOrganizations(accounts.bob.address)).hasSize(1)
         }
     }
 
@@ -142,7 +135,7 @@ class BlockchainServiceTest : TestBase() {
                         .build()
         )
 
-        val organizations = getAllOrganizations()
+        val organizations = getAllOrganizations(admin.address)
         val activateOrgTx = grpc.generateActivateTx(
                 GenerateActivateTxRequest.newBuilder()
                         .setFrom(accounts.ampnetOwner.address)
@@ -159,6 +152,7 @@ class BlockchainServiceTest : TestBase() {
     private fun isWalletActive(address: String): Boolean {
         return grpc.isWalletActive(
                 WalletActiveRequest.newBuilder()
+                        .setFrom(address)
                         .setWallet(address)
                         .build()
         ).active
@@ -172,20 +166,12 @@ class BlockchainServiceTest : TestBase() {
         ).balance
     }
 
-    private fun getAllOrganizations(): List<String> {
-        try {
-            return grpc.getAllOrganizations(
-                    Empty.getDefaultInstance()
-            ).organizationsList
-        } catch (e: StatusRuntimeException) {
-            System.err.println("##################### getAllOrganizations #########################")
-            System.err.println("status: " + e.status.toString())
-            System.err.println("trailers: " + e.trailers.toString())
-            System.err.println("localized message: " + e.localizedMessage.toString())
-            System.err.println("stack trace: " + e.stackTrace.joinToString("\n"))
-            System.err.println("message: " + e.message.toString())
-        }
-        return emptyList()
+    private fun getAllOrganizations(from: String): List<String> {
+        return grpc.getAllOrganizations(
+                GetAllOrganizationsRequest.newBuilder()
+                        .setFrom(from)
+                        .build()
+        ).organizationsList
     }
 
     // NOTE: - clients are going to handle this logic in production

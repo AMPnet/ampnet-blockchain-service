@@ -3,13 +3,13 @@ package com.ampnet.crowdfunding.blockchain.service
 import com.ampnet.crowdfunding.BalanceRequest
 import com.ampnet.crowdfunding.BalanceResponse
 import com.ampnet.crowdfunding.BlockchainServiceGrpc
-import com.ampnet.crowdfunding.Empty
 import com.ampnet.crowdfunding.GenerateActivateTxRequest
 import com.ampnet.crowdfunding.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.GenerateAddWalletTxRequest
 import com.ampnet.crowdfunding.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.GenerateBurnFromTxRequest
 import com.ampnet.crowdfunding.GenerateMintTxRequest
+import com.ampnet.crowdfunding.GetAllOrganizationsRequest
 import com.ampnet.crowdfunding.GetAllOrganizationsResponse
 import com.ampnet.crowdfunding.PostTransactionRequest
 import com.ampnet.crowdfunding.PostTransactionResponse
@@ -20,10 +20,7 @@ import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
 import com.ampnet.crowdfunding.blockchain.contract.OrganizationService
 import com.ampnet.crowdfunding.blockchain.contract.TransactionService
 import com.ampnet.crowdfunding.blockchain.contract.impl.EurService
-import io.grpc.Status
-import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
-import mu.KLogging
 import org.lognet.springboot.grpc.GRpcService
 import org.web3j.crypto.RawTransaction
 import java.math.BigInteger
@@ -37,12 +34,9 @@ class BlockchainService(
     val organizationService: OrganizationService
 ) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
-    companion object : KLogging()
-
     private val tokenFactor = BigInteger("10000000000000000") // 10e16
 
     override fun generateAddWalletTx(request: GenerateAddWalletTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-        logger.info("generateAddWalletTx")
         val tx = ampnetService.generateAddWalletTx(
                 request.wallet,
                 request.from
@@ -60,23 +54,19 @@ class BlockchainService(
         responseObserver.onCompleted()
     }
 
-    override fun getAllOrganizations(request: Empty, responseObserver: StreamObserver<GetAllOrganizationsResponse>) {
-        try {
-            responseObserver.onNext(
-                    GetAllOrganizationsResponse.newBuilder()
-                            .addAllOrganizations(ampnetService.getAllOrganizations())
-                            .build()
-            )
-            responseObserver.onCompleted()
-        } catch (e: StatusRuntimeException) {
-            responseObserver.onError(e)
-        }
+    override fun getAllOrganizations(request: GetAllOrganizationsRequest, responseObserver: StreamObserver<GetAllOrganizationsResponse>) {
+        responseObserver.onNext(
+                GetAllOrganizationsResponse.newBuilder()
+                        .addAllOrganizations(ampnetService.getAllOrganizations(request.from))
+                        .build()
+        )
+        responseObserver.onCompleted()
     }
 
     override fun isWalletActive(request: WalletActiveRequest, responseObserver: StreamObserver<WalletActiveResponse>) {
         responseObserver.onNext(
                 WalletActiveResponse.newBuilder()
-                        .setActive(ampnetService.isWalletActive(request.wallet).value)
+                        .setActive(ampnetService.isWalletActive(request.from, request.wallet).value)
                         .build()
         )
         responseObserver.onCompleted()

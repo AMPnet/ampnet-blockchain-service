@@ -8,11 +8,8 @@ import io.grpc.Server
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import org.assertj.core.api.Assertions
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
@@ -30,7 +27,6 @@ import java.util.concurrent.TimeUnit
 
 @SpringBootTest
 @ActiveProfiles("test")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class TestBase {
 
     class Accounts {
@@ -98,11 +94,11 @@ abstract class TestBase {
 
         try {
             Assertions.assertThat(
-                    channel.awaitTermination(10, TimeUnit.SECONDS)
+                    channel.awaitTermination(5, TimeUnit.SECONDS)
             ).isTrue()
 
             Assertions.assertThat(
-                    server.awaitTermination(10, TimeUnit.SECONDS)
+                    server.awaitTermination(5, TimeUnit.SECONDS)
             ).isTrue()
         } finally {
             channel.shutdownNow()

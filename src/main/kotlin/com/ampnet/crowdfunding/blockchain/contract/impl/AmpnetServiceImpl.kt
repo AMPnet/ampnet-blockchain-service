@@ -63,7 +63,7 @@ class AmpnetServiceImpl(
         )
     }
 
-    override fun getAllOrganizations(): List<String> {
+    override fun getAllOrganizations(from: String): List<String> {
         val function = Function(
                 "getAllOrganizations",
                 emptyList(),
@@ -74,7 +74,7 @@ class AmpnetServiceImpl(
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
-                        "0xfdba489e7b32073c4a86bd6a511b2586572051b6",
+                        from,
                         ampnetAddress,
                         encodedFunction
                 ),
@@ -85,7 +85,7 @@ class AmpnetServiceImpl(
         return organizations.map { it.toString() }
     }
 
-    override fun isWalletActive(wallet: String): Bool {
+    override fun isWalletActive(from: String, wallet: String): Bool {
         val function = Function(
                 "isWalletActive",
                 listOf(Address(wallet)),
@@ -96,7 +96,7 @@ class AmpnetServiceImpl(
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
-                        "0xfdba489e7b32073c4a86bd6a511b2586572051b6",
+                        from,
                         ampnetAddress,
                         encodedFunction
                 ),
