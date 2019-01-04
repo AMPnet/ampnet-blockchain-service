@@ -21,6 +21,7 @@ import com.ampnet.crowdfunding.blockchain.contract.OrganizationService
 import com.ampnet.crowdfunding.blockchain.contract.TransactionService
 import com.ampnet.crowdfunding.blockchain.contract.impl.EurService
 import io.grpc.stub.StreamObserver
+import mu.KLogging
 import org.lognet.springboot.grpc.GRpcService
 import org.web3j.crypto.RawTransaction
 import java.math.BigInteger
@@ -34,9 +35,12 @@ class BlockchainService(
     val organizationService: OrganizationService
 ) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
+    companion object : KLogging()
+
     private val tokenFactor = BigInteger("10000000000000000") // 10e16
 
     override fun generateAddWalletTx(request: GenerateAddWalletTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info("generateAddWalletTx")
         val tx = ampnetService.generateAddWalletTx(
                 request.wallet,
                 request.from

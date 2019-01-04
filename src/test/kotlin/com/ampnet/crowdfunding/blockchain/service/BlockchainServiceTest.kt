@@ -21,16 +21,16 @@ import org.web3j.utils.Numeric
 
 class BlockchainServiceTest : TestBase() {
 
-    @Test
-    fun mustBeAbleToRegisterUser() {
-        suppose("User Bob does not exist") {
-            assertThat(isWalletActive(accounts.bob.address)).isFalse()
-        }
-        verify("User can be created") {
-            addWallet(accounts.bob.address)
-            assertThat(isWalletActive(accounts.bob.address)).isTrue()
-        }
-    }
+//    @Test
+//    fun mustBeAbleToRegisterUser() {
+//        suppose("User Bob does not exist") {
+//            assertThat(isWalletActive(accounts.bob.address)).isFalse()
+//        }
+//        verify("User can be created") {
+//            addWallet(accounts.bob.address)
+//            assertThat(isWalletActive(accounts.bob.address)).isTrue()
+//        }
+//    }
 
     @Test
     fun mustBeAbleToDepositAndWithdrawTokens() {
@@ -50,6 +50,17 @@ class BlockchainServiceTest : TestBase() {
         verify("Bob can withdraw some amount of EUR") {
             burn(accounts.bob, withdrawAmount)
             assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
+        }
+    }
+
+    @Test
+    fun mustBeAbleToCreateAndActivateOrganization() {
+        suppose("User Bob is registered on AMPnet") {
+            addWallet(accounts.bob.address)
+        }
+        verify("Bob can create organization") {
+            addAndApproveOrganization(accounts.bob, "Greenpeace")
+            assertThat(getAllOrganizations()).hasSize(1)
         }
     }
 

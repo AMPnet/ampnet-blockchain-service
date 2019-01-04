@@ -86,12 +86,10 @@ abstract class TestBase {
         server = InProcessServerBuilder.forName(serverName)
                 .directExecutor()
                 .addService(blockchainService)
-                .handshakeTimeout(Long.MAX_VALUE, TimeUnit.SECONDS)
                 .build()
                 .start()
         channel = InProcessChannelBuilder.forName(serverName)
                 .directExecutor()
-                .enableRetry()
                 .build()
         grpc = BlockchainServiceGrpc.newBlockingStub(channel)
     }
