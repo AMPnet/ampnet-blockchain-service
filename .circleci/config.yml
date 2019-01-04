@@ -46,7 +46,7 @@ jobs:
 
       - run:
           name: Run all tests
-          command: gradle test --scan --stacktrace
+          command: gradle test --debug
       - run:
           name: Kotlin linter
           command: gradle ktlint
