@@ -62,7 +62,6 @@ class BlockchainService(
 
     override fun getAllOrganizations(request: Empty, responseObserver: StreamObserver<GetAllOrganizationsResponse>) {
         try {
-            val x = 5 / 0
             responseObserver.onNext(
                     GetAllOrganizationsResponse.newBuilder()
                             .addAllOrganizations(ampnetService.getAllOrganizations())

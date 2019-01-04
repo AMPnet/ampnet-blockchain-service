@@ -179,11 +179,11 @@ class BlockchainServiceTest : TestBase() {
             ).organizationsList
         } catch (e: StatusRuntimeException) {
             System.err.println("##################### getAllOrganizations #########################")
-            System.err.println("status: " + e.status)
-            System.err.println("trailers: " + e.trailers)
-            System.err.println("localized message: " + e.localizedMessage)
+            System.err.println("status: " + e.status.toString())
+            System.err.println("trailers: " + e.trailers.toString())
+            System.err.println("localized message: " + e.localizedMessage.toString())
             System.err.println("stack trace: " + e.stackTrace.joinToString("\n"))
-            System.err.println("message: " + e.message)
+            System.err.println("message: " + e.message.toString())
         }
         return emptyList()
     }
