@@ -104,7 +104,7 @@ class OrganizationServiceImpl(val web3j: Web3j) : OrganizationService {
         return RawTransaction.createTransaction(
                 txCountResponse.transactionCount,
                 gasPriceResponse.gasPrice,
-                BigInteger.valueOf(1000000),
+                BigInteger.valueOf(6000000),
                 organization,
                 encodedFunction
         )
@@ -150,8 +150,8 @@ class OrganizationServiceImpl(val web3j: Web3j) : OrganizationService {
         ).send()
 
         val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
-
-        return returnValues[0].value as List<String>
+        val projects = returnValues[0].value as List<Address>
+        return projects.map { it.toString() }
     }
 
     override fun getMembers(organization: String): List<String> {
@@ -172,7 +172,7 @@ class OrganizationServiceImpl(val web3j: Web3j) : OrganizationService {
         ).send()
 
         val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
-
-        return returnValues[0].value as List<String>
+        val members = returnValues[0].value as List<Address>
+        return members.map { it.toString() }
     }
 }
