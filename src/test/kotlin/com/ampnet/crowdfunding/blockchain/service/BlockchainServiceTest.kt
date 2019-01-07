@@ -34,11 +34,11 @@ import org.web3j.utils.Numeric
 class BlockchainServiceTest : TestBase() {
 
     data class TestProject(
-            val name: String,
-            val description: String,
-            val minUserInvestment: Long,
-            val maxUserInvesment: Long,
-            val invesmentCap: Long
+        val name: String,
+        val description: String,
+        val minUserInvestment: Long,
+        val maxUserInvesment: Long,
+        val invesmentCap: Long
     )
 
     val testProject = TestProject(
@@ -46,7 +46,7 @@ class BlockchainServiceTest : TestBase() {
             "Test desc",
             1000L,  // 10 EUR min investment per user
             10000L, // 100 EUR max investment per user
-            10000L     // 100 EUR investment cap
+            10000L // 100 EUR investment cap
     )
 
     @Test
