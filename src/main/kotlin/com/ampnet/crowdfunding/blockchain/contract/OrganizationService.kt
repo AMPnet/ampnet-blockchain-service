@@ -1,23 +1,29 @@
 package com.ampnet.crowdfunding.blockchain.contract
 
 import org.web3j.crypto.RawTransaction
-import java.math.BigDecimal
+import java.math.BigInteger
 
 interface OrganizationService {
 
-    fun generateActivateTx(organization: String, from: String): RawTransaction
+    fun generateActivateTx(from: String, organization: String): RawTransaction
 
-    fun generateWithdrawFundsTx(organization: String, tokenIssuer: String, from: String, amount: BigDecimal): RawTransaction
+    fun generateWithdrawFundsTx(from: String, organization: String, tokenIssuer: String, amount: BigInteger): RawTransaction
 
-    fun generateAddMemberTx(organization: String, from: String, member: String): RawTransaction
+    fun generateAddMemberTx(from: String, organization: String, member: String): RawTransaction
 
     fun generateAddProjectTx(
-        organization: String,
         from: String,
+        organization: String,
         name: String,
         description: String,
-        maxInvestmentPerUser: BigDecimal,
-        minInvestmentPerUser: BigDecimal,
-        investmentCap: BigDecimal
+        maxInvestmentPerUser: BigInteger,
+        minInvestmentPerUser: BigInteger,
+        investmentCap: BigInteger
     ): RawTransaction
+
+    fun isVerified(organization: String): Boolean
+
+    fun getAllProjects(organization: String): List<String>
+
+    fun getMembers(organization: String): List<String>
 }

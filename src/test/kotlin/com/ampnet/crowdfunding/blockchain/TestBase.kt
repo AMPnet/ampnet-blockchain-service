@@ -1,8 +1,8 @@
 package com.ampnet.crowdfunding.blockchain
 
-import com.ampnet.crowdfunding.BlockchainServiceGrpc
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
 import com.ampnet.crowdfunding.blockchain.service.BlockchainService
+import com.ampnet.crowdfunding.proto.BlockchainServiceGrpc
 import io.grpc.ManagedChannel
 import io.grpc.Server
 import io.grpc.inprocess.InProcessChannelBuilder

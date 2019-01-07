@@ -23,7 +23,7 @@ class AmpnetServiceImpl(
     val web3j: Web3j
 ) : AmpnetService {
 
-    override fun generateAddWalletTx(wallet: String, from: String): RawTransaction {
+    override fun generateAddWalletTx(from: String, wallet: String): RawTransaction {
         val function = Function(
                 "addWallet",
                 listOf(Address(wallet)),
@@ -43,7 +43,7 @@ class AmpnetServiceImpl(
         )
     }
 
-    override fun generateAddOrganizationTx(name: String, from: String): RawTransaction {
+    override fun generateAddOrganizationTx(from: String, name: String): RawTransaction {
         val function = Function(
                 "addOrganization",
                 listOf(Utf8String(name)),
@@ -63,7 +63,7 @@ class AmpnetServiceImpl(
         )
     }
 
-    override fun getAllOrganizations(from: String): List<String> {
+    override fun getAllOrganizations(): List<String> {
         val function = Function(
                 "getAllOrganizations",
                 emptyList(),
@@ -74,7 +74,7 @@ class AmpnetServiceImpl(
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
-                        from,
+                        ampnetAddress,
                         ampnetAddress,
                         encodedFunction
                 ),
@@ -85,7 +85,7 @@ class AmpnetServiceImpl(
         return organizations.map { it.toString() }
     }
 
-    override fun isWalletActive(from: String, wallet: String): Bool {
+    override fun isWalletActive(wallet: String): Boolean {
         val function = Function(
                 "isWalletActive",
                 listOf(Address(wallet)),
@@ -96,7 +96,7 @@ class AmpnetServiceImpl(
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
-                        from,
+                        wallet,
                         ampnetAddress,
                         encodedFunction
                 ),
@@ -105,6 +105,29 @@ class AmpnetServiceImpl(
 
         val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
 
-        return returnValues[0] as Bool
+        return returnValues[0].value as Boolean
+    }
+
+    override fun organizationExists(organization: String): Boolean {
+        val function = Function(
+                "organizationExists",
+                listOf(Address(organization)),
+                listOf(TypeReference.create(Bool::class.java))
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val ampnetAddress = applicationProperties.contracts.ampnetAddress
+
+        val response = web3j.ethCall(
+                Transaction.createEthCallTransaction(
+                        organization,
+                        ampnetAddress,
+                        encodedFunction
+                ),
+                DefaultBlockParameterName.LATEST
+        ).send()
+
+        val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
+
+        return returnValues[0].value as Boolean
     }
 }

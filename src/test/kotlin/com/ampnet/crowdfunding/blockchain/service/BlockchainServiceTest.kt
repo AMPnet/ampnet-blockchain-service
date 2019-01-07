@@ -1,17 +1,19 @@
 package com.ampnet.crowdfunding.blockchain.service
 
-import com.ampnet.crowdfunding.BalanceRequest
-import com.ampnet.crowdfunding.GenerateActivateTxRequest
-import com.ampnet.crowdfunding.GenerateAddOrganizationTxRequest
-import com.ampnet.crowdfunding.GenerateAddWalletTxRequest
-import com.ampnet.crowdfunding.GenerateApproveTxRequest
-import com.ampnet.crowdfunding.GenerateBurnFromTxRequest
-import com.ampnet.crowdfunding.GenerateMintTxRequest
-import com.ampnet.crowdfunding.GetAllOrganizationsRequest
-import com.ampnet.crowdfunding.PostTransactionRequest
-import com.ampnet.crowdfunding.RawTxResponse
-import com.ampnet.crowdfunding.WalletActiveRequest
 import com.ampnet.crowdfunding.blockchain.TestBase
+import com.ampnet.crowdfunding.proto.BalanceRequest
+import com.ampnet.crowdfunding.proto.GenerateActivateTxRequest
+import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
+import com.ampnet.crowdfunding.proto.GenerateAddWalletTxRequest
+import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
+import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
+import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
+import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
+import com.ampnet.crowdfunding.proto.GetAllOrganizationsRequest
+import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
+import com.ampnet.crowdfunding.proto.PostTransactionRequest
+import com.ampnet.crowdfunding.proto.RawTxResponse
+import com.ampnet.crowdfunding.proto.WalletActiveRequest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.web3j.crypto.Credentials
@@ -59,8 +61,30 @@ class BlockchainServiceTest : TestBase() {
             addWallet(accounts.bob.address)
         }
         verify("Bob can create organization") {
-            addAndApproveOrganization(accounts.bob, "Greenpeace")
+            val organization = addAndApproveOrganization(accounts.bob, "Greenpeace")
             assertThat(getAllOrganizations(accounts.bob.address)).hasSize(1)
+            assertThat(organizationExists(organization))
+        }
+    }
+
+    @Test
+    fun mustBeAbleToTransferFunds() {
+        val bobInitialBalance = 1000L // 10.00 EUR
+        val aliceInitialBalance = 0L
+        val bobToAliceAmount = 1000L
+        val bobFinalBalance = bobInitialBalance - bobToAliceAmount
+        val aliceFinalBalance = aliceInitialBalance + bobToAliceAmount
+
+        suppose("Users Bob and Alice are registered on AMPnet with their initial balances") {
+            addWallet(accounts.bob.address)
+            mint(accounts.bob.address, bobInitialBalance)
+            addWallet(accounts.alice.address)
+            mint(accounts.alice.address, aliceInitialBalance)
+        }
+        verify("Bob can transfer funds to Alice's wallet") {
+            transfer(accounts.bob, accounts.alice.address, bobToAliceAmount)
+            assertThat(getBalance(accounts.bob.address)).isEqualTo(bobFinalBalance)
+            assertThat(getBalance(accounts.alice.address)).isEqualTo(aliceFinalBalance)
         }
     }
 
@@ -122,7 +146,22 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-    private fun addAndApproveOrganization(admin: Credentials, name: String) {
+    private fun transfer(from: Credentials, to: String, amount: Long) {
+        val transferTx = grpc.generateTransferTx(
+                GenerateTransferTxRequest.newBuilder()
+                        .setFrom(from.address)
+                        .setTo(to)
+                        .setAmount(amount)
+                        .build()
+        )
+        grpc.postTransaction(
+                PostTransactionRequest.newBuilder()
+                        .setData(sign(transferTx, from))
+                        .build()
+        )
+    }
+
+    private fun addAndApproveOrganization(admin: Credentials, name: String): String {
         val addOrgTx = grpc.generateAddOrganizationTx(
                 GenerateAddOrganizationTxRequest.newBuilder()
                         .setFrom(admin.address)
@@ -136,7 +175,7 @@ class BlockchainServiceTest : TestBase() {
         )
 
         val organizations = getAllOrganizations(admin.address)
-        val activateOrgTx = grpc.generateActivateTx(
+        val activateOrgTx = grpc.generateActivateOrganizationTx(
                 GenerateActivateTxRequest.newBuilder()
                         .setFrom(accounts.ampnetOwner.address)
                         .setOrganization(organizations.first())
@@ -147,6 +186,8 @@ class BlockchainServiceTest : TestBase() {
                         .setData(sign(activateOrgTx, accounts.ampnetOwner))
                         .build()
         )
+
+        return organizations.first()
     }
 
     private fun isWalletActive(address: String): Boolean {
@@ -156,6 +197,15 @@ class BlockchainServiceTest : TestBase() {
                         .setWallet(address)
                         .build()
         ).active
+    }
+
+    private fun organizationExists(organization: String): Boolean {
+        return grpc.organizationExists(
+                OrganizationExistsRequest.newBuilder()
+                        .setFrom(organization)
+                        .setOrganization(organization)
+                        .build()
+        ).exists
     }
 
     private fun getBalance(address: String): Long {
