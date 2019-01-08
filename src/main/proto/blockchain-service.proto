@@ -232,11 +232,11 @@ message ProjectLockedForInvestmentsResponse {
 
 ////////// Transaction messages //////////
 
-message PostTransactionRequest {
+message PostTxRequest {
     string data = 1;
 }
 
-message PostTransactionResponse {
+message PostTxResponse {
     string txHash = 1;
 }
 
@@ -308,6 +308,6 @@ service BlockchainService {
 
     // Transactions
 
-    rpc postTransaction(PostTransactionRequest) returns (PostTransactionResponse);
+    rpc postTransaction(PostTxRequest) returns (PostTxResponse);
 
 }

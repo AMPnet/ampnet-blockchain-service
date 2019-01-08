@@ -32,8 +32,8 @@ import com.ampnet.crowdfunding.proto.OrganizationProjectsRequest
 import com.ampnet.crowdfunding.proto.OrganizationProjectsResponse
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedResponse
-import com.ampnet.crowdfunding.proto.PostTransactionRequest
-import com.ampnet.crowdfunding.proto.PostTransactionResponse
+import com.ampnet.crowdfunding.proto.PostTxRequest
+import com.ampnet.crowdfunding.proto.PostTxResponse
 import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentRequest
 import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentResponse
 import com.ampnet.crowdfunding.proto.ProjectDescriptionRequest
@@ -359,9 +359,9 @@ class BlockchainService(
         responseObserver.onCompleted()
     }
 
-    override fun postTransaction(request: PostTransactionRequest, responseObserver: StreamObserver<PostTransactionResponse>) {
+    override fun postTransaction(request: PostTxRequest, responseObserver: StreamObserver<PostTxResponse>) {
         val txHash = transactionService.postTransaction(request.data)
-        val response = PostTransactionResponse.newBuilder()
+        val response = PostTxResponse.newBuilder()
                 .setTxHash(txHash)
                 .build()
         responseObserver.onNext(response)
