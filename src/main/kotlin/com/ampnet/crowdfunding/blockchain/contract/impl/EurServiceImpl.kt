@@ -1,6 +1,7 @@
 package com.ampnet.crowdfunding.blockchain.contract.impl
 
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
+import com.ampnet.crowdfunding.blockchain.contract.EurService
 import org.springframework.stereotype.Service
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
@@ -42,7 +43,7 @@ class EurServiceImpl(
         return balance.value
     }
 
-    override fun generateMintTransaction(from: String, to: String, amount: BigInteger): RawTransaction {
+    override fun generateMintTx(from: String, to: String, amount: BigInteger): RawTransaction {
         val function = Function(
                 "mint",
                 listOf(Address(to), Uint256(amount)),
@@ -61,7 +62,7 @@ class EurServiceImpl(
         )
     }
 
-    override fun generateBurnFromTransaction(from: String, burnFrom: String, amount: BigInteger): RawTransaction {
+    override fun generateBurnFromTx(from: String, burnFrom: String, amount: BigInteger): RawTransaction {
         val function = Function(
                 "burnFrom",
                 listOf(Address(burnFrom), Uint256(amount)),
@@ -80,11 +81,49 @@ class EurServiceImpl(
         )
     }
 
-    override fun generateApproveTransaction(from: String, approve: String, amount: BigInteger): RawTransaction {
+    override fun generateApproveTx(from: String, approve: String, amount: BigInteger): RawTransaction {
         val function = Function(
                 "approve",
                 listOf(Address(approve), Uint256(amount)),
                 emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
+        val gasPriceResponse = web3j.ethGasPrice().send()
+
+        return RawTransaction.createTransaction(
+                txCountResponse.transactionCount,
+                gasPriceResponse.gasPrice,
+                BigInteger.valueOf(1000000),
+                properties.contracts.eurAddress,
+                encodedFunction
+        )
+    }
+
+    override fun generateInvestTx(from: String, project: String, amount: BigInteger): RawTransaction {
+        val function = Function(
+                "invest",
+                listOf(Address(project), Uint256(amount)),
+                emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
+        val gasPriceResponse = web3j.ethGasPrice().send()
+
+        return RawTransaction.createTransaction(
+                txCountResponse.transactionCount,
+                gasPriceResponse.gasPrice,
+                BigInteger.valueOf(1000000),
+                properties.contracts.eurAddress,
+                encodedFunction
+        )
+    }
+
+    override fun generateTransferTx(from: String, to: String, amount: BigInteger): RawTransaction {
+        val function = Function(
+                "transfer",
+                listOf(Address(to), Uint256(amount)),
+                listOf(TypeReference.create(Bool::class.java))
         )
         val encodedFunction = FunctionEncoder.encode(function)
         val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
