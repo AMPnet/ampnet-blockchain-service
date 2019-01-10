@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration
 class ApplicationProperties {
     val web3j: Web3jProperties = Web3jProperties()
     val contracts: ContractsProperties = ContractsProperties()
+    val accounts: AccountsProperties = AccountsProperties()
 }
 
 class Web3jProperties {
@@ -16,4 +17,8 @@ class Web3jProperties {
 class ContractsProperties {
     lateinit var ampnetAddress: String
     lateinit var eurAddress: String
+}
+class AccountsProperties {
+    lateinit var ampnetPrivateKey: String
+    lateinit var issuingAuthorityAddress: String
 }

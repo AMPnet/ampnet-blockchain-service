@@ -1,0 +1,7 @@
+CREATE TABLE wallet (
+  id SERIAL PRIMARY KEY,
+  hash VARCHAR(66) NOT NULL,
+  address VARCHAR(42),
+  type VARCHAR(7) NOT NULL,
+  confirmed BOOLEAN NOT NULL
+);
