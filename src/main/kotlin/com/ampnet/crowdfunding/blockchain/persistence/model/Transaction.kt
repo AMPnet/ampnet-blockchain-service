@@ -27,6 +27,9 @@ data class Transaction(
         @Column(nullable = false)
         var toAddress: String,
 
+        @Column(nullable = false)
+        var input: String,
+
         @Enumerated(EnumType.STRING)
         @Column(nullable = false, length = 7)
         var state: TransactionState,

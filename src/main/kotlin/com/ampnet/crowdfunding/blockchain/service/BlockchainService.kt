@@ -2,57 +2,10 @@ package com.ampnet.crowdfunding.blockchain.service
 
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
 import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
-import com.ampnet.crowdfunding.blockchain.contract.EurService
-import com.ampnet.crowdfunding.blockchain.contract.OrganizationService
-import com.ampnet.crowdfunding.blockchain.contract.ProjectService
-import com.ampnet.crowdfunding.blockchain.contract.TransactionService
-import com.ampnet.crowdfunding.blockchain.persistence.repository.TransactionRepository
-import com.ampnet.crowdfunding.blockchain.persistence.repository.WalletRepository
 import com.ampnet.crowdfunding.proto.AddWalletRequest
-import com.ampnet.crowdfunding.proto.BalanceRequest
-import com.ampnet.crowdfunding.proto.BalanceResponse
 import com.ampnet.crowdfunding.proto.BlockchainServiceGrpc
-//import com.ampnet.crowdfunding.proto.GenerateActivateTxRequest
-import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
-import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
-import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
-import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
-import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
-import com.ampnet.crowdfunding.proto.GenerateCancelInvestmentTx
-import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
-import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
-import com.ampnet.crowdfunding.proto.GenerateTransferOwnershipTx
-import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
-import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
-import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
-//import com.ampnet.crowdfunding.proto.GetAllOrganizationsRequest
-import com.ampnet.crowdfunding.proto.GetAllOrganizationsResponse
-import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
-import com.ampnet.crowdfunding.proto.OrganizationExistsResponse
-import com.ampnet.crowdfunding.proto.OrganizationMembersRequest
-import com.ampnet.crowdfunding.proto.OrganizationMembersResponse
-import com.ampnet.crowdfunding.proto.OrganizationProjectsRequest
-import com.ampnet.crowdfunding.proto.OrganizationProjectsResponse
-import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
-import com.ampnet.crowdfunding.proto.OrganizationVerifiedResponse
 import com.ampnet.crowdfunding.proto.PostTxRequest
 import com.ampnet.crowdfunding.proto.PostTxResponse
-import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentRequest
-import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentResponse
-import com.ampnet.crowdfunding.proto.ProjectDescriptionRequest
-import com.ampnet.crowdfunding.proto.ProjectDescriptionResponse
-import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
-import com.ampnet.crowdfunding.proto.ProjectInvestmentCapResponse
-import com.ampnet.crowdfunding.proto.ProjectLockedForInvestmentsRequest
-import com.ampnet.crowdfunding.proto.ProjectLockedForInvestmentsResponse
-import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
-import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserResponse
-import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
-import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserResponse
-import com.ampnet.crowdfunding.proto.ProjectNameRequest
-import com.ampnet.crowdfunding.proto.ProjectNameResponse
-import com.ampnet.crowdfunding.proto.ProjectTotalInvestmentForUserRequest
-import com.ampnet.crowdfunding.proto.ProjectTotalInvestmentForUserResponse
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import com.ampnet.crowdfunding.proto.WalletActiveRequest
 import com.ampnet.crowdfunding.proto.WalletActiveResponse
@@ -64,22 +17,18 @@ import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.Sign
 import org.web3j.crypto.TransactionDecoder
 import org.web3j.crypto.TransactionEncoder
-import org.web3j.protocol.Web3j
+import org.web3j.crypto.TransactionUtils
+import org.web3j.tx.RawTransactionManager
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 
 // TODO: - decide about amount type (uint256 in smart contracts, bigdecimal in blockchain service), where to convert?
 @GRpcService
 class BlockchainService(
-    val transactionService: TransactionService,
-    val ampnetService: AmpnetService,
-    val eurService: EurService,
-    val organizationService: OrganizationService,
-    val projectService: ProjectService,
-    val web3j: Web3j,
-    val transactionRepository: TransactionRepository,
-    val walletRepository: WalletRepository,
-    val properties: ApplicationProperties
+        val transactionService: TransactionService,
+        val walletService: WalletService,
+        val ampnetService: AmpnetService,
+        val properties: ApplicationProperties
 ) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
     private val tokenFactor = BigInteger("10000000000000000") // 10e16
@@ -100,16 +49,19 @@ class BlockchainService(
         }
     }
 
+    override fun isWalletActive(request: WalletActiveRequest, responseObserver: StreamObserver<WalletActiveResponse>) {
+        val wallet = walletService.getWallet(request.walletTxHash)
+        responseObserver.onNext(
+                WalletActiveResponse.newBuilder()
+                        .setActive(ampnetService.isWalletActive(wallet))
+                        .build()
+        )
+        responseObserver.onCompleted()
+    }
+
     // TODO: - handle errors, create services above repos, convert txhash to address or return error
 
-//    override fun isWalletActive(request: WalletActiveRequest, responseObserver: StreamObserver<WalletActiveResponse>) {
-//        responseObserver.onNext(
-//                WalletActiveResponse.newBuilder()
-//                        .setActive(ampnetService.isWalletActive(request.wallet))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
+
 
 //    override fun generateAddOrganizationTx(request: GenerateAddOrganizationTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
 //        val address = getAddressFromTxHash()
@@ -386,6 +338,7 @@ class BlockchainService(
 
     override fun postTransaction(request: PostTxRequest, responseObserver: StreamObserver<PostTxResponse>) {
         try {
+
             val response = post(request.data)
             responseObserver.onNext(response)
             responseObserver.onCompleted()

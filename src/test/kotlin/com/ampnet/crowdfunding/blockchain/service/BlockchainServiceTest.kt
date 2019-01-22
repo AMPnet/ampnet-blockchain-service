@@ -60,6 +60,7 @@ class BlockchainServiceTest : TestBase() {
         lateinit var txResponse: PostTxResponse
         verify("User can be created") {
             txResponse = addWallet(accounts.bob.address)
+            Thread.sleep(10000)
             assertThat(isWalletActive(txResponse.txHash)).isTrue()
         }
         verify("User creation transaction is stored in database") {

@@ -25,8 +25,5 @@ data class Wallet(
 
         @Enumerated(EnumType.STRING)
         @Column(nullable = false, length = 7)
-        var type: WalletType,
-
-        @Column(nullable = false)
-        var confirmed: Boolean
+        var type: WalletType
 )
