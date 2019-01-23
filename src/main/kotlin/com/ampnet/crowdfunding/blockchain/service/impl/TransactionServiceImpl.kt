@@ -10,14 +10,18 @@ import com.ampnet.crowdfunding.blockchain.persistence.model.Wallet
 import com.ampnet.crowdfunding.blockchain.persistence.repository.TransactionRepository
 import com.ampnet.crowdfunding.blockchain.persistence.repository.WalletRepository
 import com.ampnet.crowdfunding.blockchain.service.TransactionService
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
 import org.springframework.stereotype.Service
 import org.web3j.abi.TypeDecoder
 import org.web3j.abi.datatypes.Address
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.Hash
+import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.SignedRawTransaction
 import org.web3j.crypto.TransactionDecoder
 import org.web3j.protocol.Web3j
+import org.web3j.protocol.core.methods.response.EthSendTransaction
 import javax.transaction.Transactional
 
 @Service
@@ -28,62 +32,23 @@ class TransactionServiceImpl(
         val properties: ApplicationProperties
 ) : TransactionService {
 
-    override fun postTransaction(txData: String): String {
+    override fun postAndCacheTransaction(txData: String, onComplete: (Transaction) -> Unit) {
         throwIfCallerNotMemberOfAmpnet(txData)
-        val result = web3j.ethSendRawTransaction(txData).send()
-//        ### maybe here persist transaction (move persistTransaction() from interface -> private fun)
-//        web3j.ethGetTransactionReceipt(result.transactionHash).flowable().subscribe { t ->
-//            t.transactionReceipt.ifPresent {
-//                  ### do stuff... (transaction mined here) ###
-//            }
-//        }
-        return result.transactionHash
-    }
+        web3j.ethSendRawTransaction(txData).sendAsync().thenAccept { sendTx ->
+            val txHash = sendTx.transactionHash
+            val tx = persistTransaction(txData, txHash)
 
-    @Transactional
-    override fun persistTransaction(txHash: String): Transaction {
-        val ethTransaction = web3j.ethGetTransactionByHash(txHash).send().transaction.get()
-        val toAddress = ethTransaction.to
-        val input = ethTransaction.input
-        val functionHash = ethTransaction.input.substring(0, 10)
-        if (toAddress == properties.contracts.ampnetAddress) {
-            when (functionHash) {
-                Hash.sha3String("addWallet(address)").substring(0, 10) -> {
-
-                    // Example input field parsing to get Address parameter
-                    val refMethod = TypeDecoder::class.java.getDeclaredMethod(
-                            "decode",
-                            String::class.java,
-                            Class::class.java
-                    )
-                    refMethod.isAccessible = true
-                    val addressInput = input.substring(10)
-                    val address = refMethod.invoke(null, addressInput, Address::class.java) as Address
-
-                    val tx = Transaction::class.java.newInstance()
-                    tx.hash = txHash
-                    tx.fromAddress = ethTransaction.from
-                    tx.toAddress = ethTransaction.to
-                    tx.input = ethTransaction.input
-                    tx.state = TransactionState.PENDING
-                    tx.type = TransactionType.WALLET_CREATE
-                    tx.amount = null
-                    transactionRepository.save(tx)
-
-                    val wallet = Wallet::class.java.newInstance()
-                    wallet.hash = txHash
-                    wallet.address = null
-                    wallet.type = WalletType.USER
-                    walletRepository.save(wallet)
-
-                    return tx
+            // Try to wait for mined event and update tx right away (if fails scheduled job will handle it anyway)
+            web3j.ethGetTransactionReceipt(sendTx.transactionHash).flowable().subscribe { receipt ->
+                if (receipt.result.isStatusOK) {
+                    tx.state = TransactionState.MINED
+                } else {
+                    tx.state = TransactionState.FAILED
                 }
-                else -> {
-                    throw TransactionParseException("Only addWallet(address) function currently supported!")
-                }
+                transactionRepository.save(tx)
             }
-        } else {
-            throw TransactionParseException("Only transacting with AMPnet contract currently supported!")
+
+            onComplete(tx)
         }
     }
 
@@ -106,10 +71,26 @@ class TransactionServiceImpl(
                 val receipt = web3j.ethGetTransactionReceipt(hash).send().transactionReceipt.get()
                 when (tx.type) {
                     TransactionType.WALLET_CREATE -> {
-
+                        val refMethod = TypeDecoder::class.java.getDeclaredMethod(
+                                "decode",
+                                String::class.java,
+                                Class::class.java
+                        )
+                        refMethod.isAccessible = true
+                        val addressInput = receipt.logs.first().topics[1]
+                        val address = refMethod.invoke(null, addressInput, Address::class.java) as Address
+                        return address.value
                     }
                     TransactionType.ORG_CREATE -> {
-
+                        val refMethod = TypeDecoder::class.java.getDeclaredMethod(
+                                "decode",
+                                String::class.java,
+                                Class::class.java
+                        )
+                        refMethod.isAccessible = true
+                        val addressInput = receipt.logs.first().topics[1]
+                        val address = refMethod.invoke(null, addressInput, Address::class.java) as Address
+                        return address.value
                     }
                     TransactionType.ORG_ADD_PROJECT -> {
 
@@ -133,9 +114,49 @@ class TransactionServiceImpl(
         val pendingTransactions = transactionRepository.findAllPending()
         for (tx in pendingTransactions) {
             web3j.ethGetTransactionReceipt(tx.hash).send().transactionReceipt.ifPresent {
-                tx.state = TransactionState.valueOf(it.status) // TODO: - 0x0 - failed, 0x1 mined
+                if (it.isStatusOK) {
+                    tx.state = TransactionState.MINED
+                } else {
+                    tx.state = TransactionState.FAILED
+                }
                 transactionRepository.save(tx)
             }
+        }
+    }
+
+    @Transactional
+    fun persistTransaction(txData: String, txHash: String): Transaction {
+        val signedTx = TransactionDecoder.decode(txData) as SignedRawTransaction
+        val toAddress = signedTx.to
+        val input = signedTx.data
+        val functionHash = "0x${input.substring(0, 8)}"
+        if (toAddress == properties.contracts.ampnetAddress) {
+            when (functionHash) {
+                Hash.sha3String("addWallet(address)").substring(0, 10) -> {
+                    val tx = Transaction::class.java.newInstance()
+                    tx.hash = txHash
+                    tx.fromAddress = signedTx.from
+                    tx.toAddress = signedTx.to
+                    tx.input = signedTx.data
+                    tx.state = TransactionState.PENDING
+                    tx.type = TransactionType.WALLET_CREATE
+                    tx.amount = null
+                    transactionRepository.save(tx)
+
+                    val wallet = Wallet::class.java.newInstance()
+                    wallet.hash = txHash
+                    wallet.address = null
+                    wallet.type = WalletType.USER
+                    walletRepository.save(wallet)
+
+                    return tx
+                }
+                else -> {
+                    throw TransactionParseException("Only addWallet(address) function currently supported!")
+                }
+            }
+        } else {
+            throw TransactionParseException("Only transacting with AMPnet contract currently supported!")
         }
     }
 

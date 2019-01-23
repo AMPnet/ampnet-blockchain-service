@@ -4,9 +4,7 @@ import com.ampnet.crowdfunding.blockchain.persistence.model.Transaction
 
 interface TransactionService {
 
-    fun postTransaction(txData: String): String
-
-    fun persistTransaction(txHash: String): Transaction
+    fun postAndCacheTransaction(txData: String, onComplete: (Transaction) -> Unit)
 
     fun getTransaction(txHash: String): Transaction
 

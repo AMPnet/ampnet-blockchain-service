@@ -60,7 +60,6 @@ class BlockchainServiceTest : TestBase() {
         lateinit var txResponse: PostTxResponse
         verify("User can be created") {
             txResponse = addWallet(accounts.bob.address)
-            Thread.sleep(10000)
             assertThat(isWalletActive(txResponse.txHash)).isTrue()
         }
         verify("User creation transaction is stored in database") {
@@ -72,7 +71,7 @@ class BlockchainServiceTest : TestBase() {
             assertThat(tx.fromAddress).isEqualTo(accounts.ampnetOwner.address)
             assertThat(tx.toAddress).isEqualTo(applicationProperties.contracts.ampnetAddress)
             assertThat(tx.amount).isEqualTo(null)
-            assertThat(tx.state).isEqualTo(TransactionState.PENDING)
+            assertThat(tx.state).isEqualTo(TransactionState.MINED)
         }
         verify("User wallet is stored in database") {
             val walletsResponse = walletRepository.findAll()

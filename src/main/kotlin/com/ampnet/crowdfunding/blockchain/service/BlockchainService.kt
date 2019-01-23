@@ -41,9 +41,10 @@ class BlockchainService(
                     request.wallet
             )
             val signedTx = sign(tx, credentials)
-            val response = post(signedTx)
-            responseObserver.onNext(response)
-            responseObserver.onCompleted()
+            post(signedTx) { response ->
+                responseObserver.onNext(response)
+                responseObserver.onCompleted()
+            }
         } catch (t: Throwable) {
             responseObserver.onError(Status.fromThrowable(t).asRuntimeException())
         }
@@ -338,10 +339,10 @@ class BlockchainService(
 
     override fun postTransaction(request: PostTxRequest, responseObserver: StreamObserver<PostTxResponse>) {
         try {
-
-            val response = post(request.data)
-            responseObserver.onNext(response)
-            responseObserver.onCompleted()
+            post(request.data) { response ->
+                responseObserver.onNext(response)
+                responseObserver.onCompleted()
+            }
         } catch (e: Exception) {
             responseObserver.onError(Status.fromThrowable(e).asRuntimeException())
         }
@@ -352,13 +353,15 @@ class BlockchainService(
         return Numeric.toHexString(signedTx)
     }
 
-    private fun post(txData: String): PostTxResponse {
-        val txHash = transactionService.postTransaction(txData)
-        val tx = transactionService.persistTransaction(txHash)
-        return PostTxResponse.newBuilder()
-                .setTxHash(txHash)
-                .setTxType(com.ampnet.crowdfunding.proto.TransactionType.valueOf(tx.type.name))
-                .build()
+    private fun post(txData: String, onComplete: (PostTxResponse) -> Unit) {
+        transactionService.postAndCacheTransaction(txData) { tx ->
+            onComplete(
+                    PostTxResponse.newBuilder()
+                    .setTxHash(tx.hash)
+                    .setTxType(com.ampnet.crowdfunding.proto.TransactionType.valueOf(tx.type.name))
+                    .build()
+            )
+        }
     }
 
     private fun convert(tx: RawTransaction): RawTxResponse {
