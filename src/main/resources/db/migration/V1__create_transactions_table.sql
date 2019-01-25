@@ -6,5 +6,5 @@ CREATE TABLE transaction (
   input VARCHAR NOT NULL,
   state VARCHAR(7) NOT NULL,
   type VARCHAR(18) NOT NULL,
-  amount BIGINT
+  amount NUMERIC
 );

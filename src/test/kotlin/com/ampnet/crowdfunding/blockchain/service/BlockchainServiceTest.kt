@@ -70,7 +70,7 @@ class BlockchainServiceTest : TestBase() {
             assertThat(tx.type).isEqualTo(TransactionType.WALLET_CREATE)
             assertThat(tx.fromAddress).isEqualTo(accounts.ampnetOwner.address)
             assertThat(tx.toAddress).isEqualTo(applicationProperties.contracts.ampnetAddress)
-            assertThat(tx.amount).isEqualTo(null)
+            assertThat(tx.amount).isEqualTo(null) // TODO: - fix
             assertThat(tx.state).isEqualTo(TransactionState.MINED)
         }
         verify("User wallet is stored in database") {
@@ -84,27 +84,29 @@ class BlockchainServiceTest : TestBase() {
         }
     }
 
-//    @Test
-//    fun mustBeAbleToDepositAndWithdrawTokens() {
-//        val initialBalance = 0L // user starts with empty wallet
-//        val depositAmount = 1550L // 15.50 EUR
-//        val withdrawAmount = 1550L // 15.50 EUR
-//        val finalBalance = initialBalance + depositAmount - withdrawAmount
-//
-//        suppose("User Bob is registered on AMPnet and has zero balance") {
-//            addWallet(accounts.bob.address)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(initialBalance)
-//        }
-//        verify("Bob can deposit some amount of EUR") {
-//            mint(accounts.bob.address, depositAmount)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(depositAmount)
-//        }
-//        verify("Bob can withdraw some amount of EUR") {
-//            approveTokenIssuer(accounts.bob, withdrawAmount)
-//            burn(accounts.bob.address, withdrawAmount)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(finalBalance)
-//        }
-//    }
+    @Test
+    fun mustBeAbleToDepositAndWithdrawTokens() {
+        val initialBalance = 0L // user starts with empty wallet
+        val depositAmount = 1550L // 15.50 EUR
+        val withdrawAmount = 1550L // 15.50 EUR
+        val finalBalance = initialBalance + depositAmount - withdrawAmount
+
+        lateinit var bobWalletTxHash: String
+
+        suppose("User Bob is registered on AMPnet and has zero balance") {
+            bobWalletTxHash = addWallet(accounts.bob.address).txHash
+            assertThat(getBalance(bobWalletTxHash)).isEqualTo(initialBalance)
+        }
+        verify("Bob can deposit some amount of EUR") {
+            mint(accounts.bob.address, depositAmount)
+            assertThat(getBalance(bobWalletTxHash)).isEqualTo(depositAmount)
+        }
+        verify("Bob can withdraw some amount of EUR") {
+            approveTokenIssuer(bobWalletTxHash, accounts.bob, withdrawAmount)
+            burn(accounts.bob.address, withdrawAmount)
+            assertThat(getBalance(bobWalletTxHash)).isEqualTo(finalBalance)
+        }
+    }
 //
 //    @Test
 //    fun mustBeAbleToTransferFunds() {
@@ -316,50 +318,50 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-//    private fun mint(to: String, amount: Long) {
-//        val tx = grpc.generateMintTx(
-//                GenerateMintTxRequest.newBuilder()
-//                        .setAmount(amount)
-//                        .setFrom(accounts.eurOwner.address)
-//                        .setTo(to)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(tx, accounts.eurOwner))
-//                        .build()
-//        )
-//    }
-//
-//    private fun approveTokenIssuer(from: Credentials, amount: Long) {
-//        val approveTx = grpc.generateApproveTx(
-//                GenerateApproveTxRequest.newBuilder()
-//                        .setFrom(from.address)
-//                        .setAmount(amount)
-//                        .setApprove(accounts.eurOwner.address)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(approveTx, from))
-//                        .build()
-//        )
-//    }
-//
-//    private fun burn(from: String, amount: Long) {
-//        val burnTx = grpc.generateBurnFromTx(
-//                GenerateBurnFromTxRequest.newBuilder()
-//                        .setAmount(amount)
-//                        .setBurnFrom(from)
-//                        .setFrom(accounts.eurOwner.address)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(burnTx, accounts.eurOwner))
-//                        .build()
-//        )
-//    }
+    private fun mint(to: String, amount: Long) {
+        val tx = grpc.generateMintTx(
+                GenerateMintTxRequest.newBuilder()
+                        .setAmount(amount)
+                        .setFrom(accounts.eurOwner.address)
+                        .setTo(to)
+                        .build()
+        )
+        grpc.postTransaction(
+                PostTxRequest.newBuilder()
+                        .setData(sign(tx, accounts.eurOwner))
+                        .build()
+        )
+    }
+
+    private fun approveTokenIssuer(fromTxHash: String, fromCredentials: Credentials, amount: Long) {
+        val approveTx = grpc.generateApproveTx(
+                GenerateApproveTxRequest.newBuilder()
+                        .setFromTxHash(fromTxHash)
+                        .setAmount(amount)
+                        .setApprove(accounts.eurOwner.address)
+                        .build()
+        )
+        grpc.postTransaction(
+                PostTxRequest.newBuilder()
+                        .setData(sign(approveTx, fromCredentials))
+                        .build()
+        )
+    }
+
+    private fun burn(from: String, amount: Long) {
+        val burnTx = grpc.generateBurnFromTx(
+                GenerateBurnFromTxRequest.newBuilder()
+                        .setAmount(amount)
+                        .setBurnFrom(from)
+                        .setFrom(accounts.eurOwner.address)
+                        .build()
+        )
+        grpc.postTransaction(
+                PostTxRequest.newBuilder()
+                        .setData(sign(burnTx, accounts.eurOwner))
+                        .build()
+        )
+    }
 //
 //    private fun transfer(from: Credentials, to: String, amount: Long) {
 //        val transferTx = grpc.generateTransferTx(
@@ -430,13 +432,13 @@ class BlockchainServiceTest : TestBase() {
 //        ).verified
 //    }
 //
-//    private fun getBalance(address: String): Long {
-//        return grpc.getBalance(
-//                BalanceRequest.newBuilder()
-//                        .setAddress(address)
-//                        .build()
-//        ).balance
-//    }
+    private fun getBalance(txHash: String): Long {
+        return grpc.getBalance(
+                BalanceRequest.newBuilder()
+                        .setWalletTxHash(txHash)
+                        .build()
+        ).balance
+    }
 //
 //    private fun getAllOrganizations(from: String): List<String> {
 //        return grpc.getAllOrganizations(

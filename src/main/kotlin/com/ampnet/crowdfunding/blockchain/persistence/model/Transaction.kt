@@ -2,6 +2,7 @@ package com.ampnet.crowdfunding.blockchain.persistence.model
 
 import com.ampnet.crowdfunding.blockchain.enums.TransactionState
 import com.ampnet.crowdfunding.blockchain.enums.TransactionType
+import java.math.BigInteger
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.EnumType
@@ -38,6 +39,6 @@ data class Transaction(
         @Column(nullable = false, length = 18)
         var type: TransactionType,
 
-        @Column
-        var amount: Long?
+        @Column(nullable = true)
+        var amount: BigInteger?
 )

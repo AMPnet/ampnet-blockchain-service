@@ -10,11 +10,17 @@ import com.ampnet.crowdfunding.blockchain.persistence.model.Wallet
 import com.ampnet.crowdfunding.blockchain.persistence.repository.TransactionRepository
 import com.ampnet.crowdfunding.blockchain.persistence.repository.WalletRepository
 import com.ampnet.crowdfunding.blockchain.service.TransactionService
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import org.springframework.stereotype.Service
+import org.web3j.abi.FunctionReturnDecoder
 import org.web3j.abi.TypeDecoder
+import org.web3j.abi.TypeReference
+import org.web3j.abi.Utils
 import org.web3j.abi.datatypes.Address
+import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.Hash
 import org.web3j.crypto.RawTransaction
@@ -22,6 +28,7 @@ import org.web3j.crypto.SignedRawTransaction
 import org.web3j.crypto.TransactionDecoder
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.methods.response.EthSendTransaction
+import java.math.BigInteger
 import javax.transaction.Transactional
 
 @Service
@@ -69,6 +76,8 @@ class TransactionServiceImpl(
         when (tx.state) {
             TransactionState.MINED -> {
                 val receipt = web3j.ethGetTransactionReceipt(hash).send().transactionReceipt.get()
+
+                // TODO: - Extract to decodeAddress() + implement org add project
                 when (tx.type) {
                     TransactionType.WALLET_CREATE -> {
                         val refMethod = TypeDecoder::class.java.getDeclaredMethod(
@@ -93,7 +102,15 @@ class TransactionServiceImpl(
                         return address.value
                     }
                     TransactionType.ORG_ADD_PROJECT -> {
-
+                        val refMethod = TypeDecoder::class.java.getDeclaredMethod(
+                                "decode",
+                                String::class.java,
+                                Class::class.java
+                        )
+                        refMethod.isAccessible = true
+                        val addressInput = receipt.logs.first().topics[1]
+                        val address = refMethod.invoke(null, addressInput, Address::class.java) as Address
+                        return address.value
                     }
                     else -> {
                         // TODO: - throw error
@@ -130,6 +147,9 @@ class TransactionServiceImpl(
         val toAddress = signedTx.to
         val input = signedTx.data
         val functionHash = "0x${input.substring(0, 8)}"
+        val inputData = input.substring(8)
+
+        // TODO: - refactor
         if (toAddress == properties.contracts.ampnetAddress) {
             when (functionHash) {
                 Hash.sha3String("addWallet(address)").substring(0, 10) -> {
@@ -152,12 +172,101 @@ class TransactionServiceImpl(
                     return tx
                 }
                 else -> {
-                    throw TransactionParseException("Only addWallet(address) function currently supported!")
+                    // TODO: - throw error
                 }
             }
+        } else if (toAddress == properties.contracts.eurAddress) {
+            when (functionHash) {
+                Hash.sha3String("mint(address,uint256)").substring(0, 10) -> {
+                    val tx = Transaction::class.java.newInstance()
+
+                    val refMethod = TypeDecoder::class.java.getDeclaredMethod(
+                            "decode",
+                            String::class.java,
+                            Int::class.java,
+                            Class::class.java
+                    )
+                    refMethod.isAccessible = true
+                    val addressInput = inputData.substring(0, 64)
+                    val amountInput = inputData.substring(64)
+                    val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
+                    val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
+
+                    tx.hash = txHash
+                    tx.fromAddress = signedTx.from
+                    tx.toAddress = address.value
+                    tx.input = signedTx.data
+                    tx.state = TransactionState.PENDING
+                    tx.type = TransactionType.DEPOSIT
+                    tx.amount = amount.value
+
+                    transactionRepository.save(tx)
+
+                    return tx
+                }
+                Hash.sha3String("burnFrom(address,uint256)").substring(0, 10) -> {
+                    val tx = Transaction::class.java.newInstance()
+
+                    val refMethod = TypeDecoder::class.java.getDeclaredMethod(
+                            "decode",
+                            String::class.java,
+                            Int::class.java,
+                            Class::class.java
+                    )
+                    refMethod.isAccessible = true
+                    val addressInput = inputData.substring(0, 64)
+                    val amountInput = inputData.substring(64)
+                    val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
+                    val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
+
+                    tx.hash = txHash
+                    tx.fromAddress = address.value
+                    tx.toAddress = signedTx.from
+                    tx.input = signedTx.data
+                    tx.state = TransactionState.PENDING
+                    tx.type = TransactionType.WITHDRAW
+                    tx.amount = amount.value
+
+                    transactionRepository.save(tx)
+
+                    return tx
+                }
+                Hash.sha3String("approve(address,uint256)").substring(0, 10) -> {
+                    val tx = Transaction::class.java.newInstance()
+
+                    val refMethod = TypeDecoder::class.java.getDeclaredMethod(
+                            "decode",
+                            String::class.java,
+                            Int::class.java,
+                            Class::class.java
+                    )
+                    refMethod.isAccessible = true
+                    val addressInput = inputData.substring(0, 64)
+                    val amountInput = inputData.substring(64)
+                    val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
+                    val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
+
+                    tx.hash = txHash
+                    tx.fromAddress = signedTx.from
+                    tx.toAddress = address.value
+                    tx.input = signedTx.data
+                    tx.state = TransactionState.PENDING
+                    tx.type = TransactionType.PENDING_WITHDRAW
+                    tx.amount = amount.value
+
+                    transactionRepository.save(tx)
+
+                    return tx
+                }
+                else -> {
+                    // TODO: - throw error
+                }
+            }
+
         } else {
-            throw TransactionParseException("Only transacting with AMPnet contract currently supported!")
+            // TODO: - throw error
         }
+        TODO("finish")
     }
 
     private fun throwIfCallerNotMemberOfAmpnet(txData: String) {
