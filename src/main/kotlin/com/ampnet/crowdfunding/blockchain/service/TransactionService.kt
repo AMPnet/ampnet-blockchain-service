@@ -13,5 +13,4 @@ interface TransactionService {
     fun getAddressFromHash(hash: String): String
 
     fun updateTransactionStates()
-
 }

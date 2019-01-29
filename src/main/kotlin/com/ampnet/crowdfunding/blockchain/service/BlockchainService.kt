@@ -3,28 +3,34 @@ package com.ampnet.crowdfunding.blockchain.service
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
 import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
 import com.ampnet.crowdfunding.blockchain.contract.EurService
-import com.ampnet.crowdfunding.proto.*
-import io.grpc.Status
+import com.ampnet.crowdfunding.proto.BlockchainServiceGrpc
+import com.ampnet.crowdfunding.proto.AddWalletRequest
+import com.ampnet.crowdfunding.proto.PostTxRequest
+import com.ampnet.crowdfunding.proto.PostTxResponse
+import com.ampnet.crowdfunding.proto.WalletActiveRequest
+import com.ampnet.crowdfunding.proto.WalletActiveResponse
+import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
+import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
+import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
+import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
+import com.ampnet.crowdfunding.proto.BalanceRequest
+import com.ampnet.crowdfunding.proto.BalanceResponse
+import com.ampnet.crowdfunding.proto.RawTxResponse
 import io.grpc.stub.StreamObserver
 import org.lognet.springboot.grpc.GRpcService
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
-import org.web3j.crypto.Sign
-import org.web3j.crypto.TransactionDecoder
 import org.web3j.crypto.TransactionEncoder
-import org.web3j.crypto.TransactionUtils
-import org.web3j.tx.RawTransactionManager
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 
-// TODO: - decide about amount type (uint256 in smart contracts, bigdecimal in blockchain service), where to convert?
 @GRpcService
 class BlockchainService(
-        val transactionService: TransactionService,
-        val walletService: WalletService,
-        val ampnetService: AmpnetService,
-        val eurService: EurService,
-        val properties: ApplicationProperties
+    val transactionService: TransactionService,
+    val walletService: WalletService,
+    val ampnetService: AmpnetService,
+    val eurService: EurService,
+    val properties: ApplicationProperties
 ) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
     private val tokenFactor = BigInteger("10000000000000000") // 10e16
@@ -41,19 +47,23 @@ class BlockchainService(
                 responseObserver.onNext(response)
                 responseObserver.onCompleted()
             }
-        } catch (t: Throwable) {
-            responseObserver.onError(Status.fromThrowable(t).asRuntimeException())
+        } catch (e: Exception) {
+            responseObserver.onError(e)
         }
     }
 
     override fun isWalletActive(request: WalletActiveRequest, responseObserver: StreamObserver<WalletActiveResponse>) {
-        val wallet = walletService.getWallet(request.walletTxHash)
-        responseObserver.onNext(
-                WalletActiveResponse.newBuilder()
-                        .setActive(ampnetService.isWalletActive(wallet))
-                        .build()
-        )
-        responseObserver.onCompleted()
+        try {
+            val wallet = walletService.getWallet(request.walletTxHash)
+            responseObserver.onNext(
+                    WalletActiveResponse.newBuilder()
+                            .setActive(ampnetService.isWalletActive(wallet))
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
     }
 
 //    override fun generateAddOrganizationTx(request: GenerateAddOrganizationTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
@@ -86,44 +96,60 @@ class BlockchainService(
 //    }
 //
     override fun generateMintTx(request: GenerateMintTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-        val tx = eurService.generateMintTx(
-                request.from,
-                request.to,
-                eurToToken(request.amount)
-        )
-        responseObserver.onNext(convert(tx))
-        responseObserver.onCompleted()
+        try {
+            val tx = eurService.generateMintTx(
+                    request.from,
+                    request.to,
+                    eurToToken(request.amount)
+            )
+            responseObserver.onNext(convert(tx))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
     }
 
     override fun generateBurnFromTx(request: GenerateBurnFromTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-        val tx = eurService.generateBurnFromTx(
-                request.from,
-                request.burnFrom,
-                eurToToken(request.amount)
-        )
-        responseObserver.onNext(convert(tx))
-        responseObserver.onCompleted()
+        try {
+            val tx = eurService.generateBurnFromTx(
+                    request.from,
+                    request.burnFrom,
+                    eurToToken(request.amount)
+            )
+            responseObserver.onNext(convert(tx))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
     }
 
     override fun generateApproveTx(request: GenerateApproveTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-        val wallet = walletService.getWallet(request.fromTxHash)
-        val tx = eurService.generateApproveTx(
-                wallet,
-                request.approve,
-                eurToToken(request.amount)
-        )
-        responseObserver.onNext(convert(tx))
-        responseObserver.onCompleted()
+        try {
+            val wallet = walletService.getWallet(request.fromTxHash)
+            val tx = eurService.generateApproveTx(
+                    wallet,
+                    request.approve,
+                    eurToToken(request.amount)
+            )
+            responseObserver.onNext(convert(tx))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
     }
 
     override fun getBalance(request: BalanceRequest, responseObserver: StreamObserver<BalanceResponse>) {
-        val wallet = walletService.getWallet(request.walletTxHash)
-        val balance = eurService.balanceOf(wallet)
-        val response = BalanceResponse.newBuilder()
-                .setBalance(tokenToEur(balance))
-                .build()
-        responseObserver.onNext(response)
-        responseObserver.onCompleted()
+        try {
+            val wallet = walletService.getWallet(request.walletTxHash)
+            val balance = eurService.balanceOf(wallet)
+            val response = BalanceResponse.newBuilder()
+                    .setBalance(tokenToEur(balance))
+                    .build()
+            responseObserver.onNext(response)
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
     }
 //
 //    override fun generateInvestTx(request: GenerateInvestTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
@@ -136,15 +162,21 @@ class BlockchainService(
 //        responseObserver.onCompleted()
 //    }
 //
-//    override fun generateTransferTx(request: GenerateTransferTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = eurService.generateTransferTx(
-//                request.from,
-//                request.to,
-//                eurToToken(request.amount)
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
+    override fun generateTransferTx(request: GenerateTransferTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        try {
+            val fromWallet = walletService.getWallet(request.fromTxHash)
+            val toWallet = walletService.getWallet(request.toTxHash)
+            val tx = eurService.generateTransferTx(
+                    fromWallet,
+                    toWallet,
+                    eurToToken(request.amount)
+            )
+            responseObserver.onNext(convert(tx))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
 //
 //    override fun generateActivateOrganizationTx(request: GenerateActivateTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
 //        val tx = organizationService.generateActivateTx(
@@ -337,7 +369,7 @@ class BlockchainService(
                 responseObserver.onCompleted()
             }
         } catch (e: Exception) {
-            responseObserver.onError(Status.fromThrowable(e).asRuntimeException())
+            responseObserver.onError(e)
         }
     }
 
@@ -374,5 +406,4 @@ class BlockchainService(
     private fun tokenToEur(token: BigInteger): Long {
         return (token / tokenFactor).longValueExact()
     }
-
 }

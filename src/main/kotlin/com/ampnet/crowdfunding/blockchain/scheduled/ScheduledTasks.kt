@@ -15,5 +15,4 @@ class ScheduledTasks {
     fun updateTransactionsState() {
         transactionService.updateTransactionStates()
     }
-
 }

@@ -12,5 +12,4 @@ class DatabaseCleanerService(val em: EntityManager) {
         em.createNativeQuery("TRUNCATE transaction").executeUpdate()
         em.createNativeQuery("TRUNCATE wallet").executeUpdate()
     }
-
 }

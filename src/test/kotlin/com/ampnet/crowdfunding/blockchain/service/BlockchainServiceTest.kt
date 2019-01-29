@@ -4,39 +4,17 @@ import com.ampnet.crowdfunding.blockchain.TestBase
 import com.ampnet.crowdfunding.blockchain.enums.TransactionState
 import com.ampnet.crowdfunding.blockchain.enums.TransactionType
 import com.ampnet.crowdfunding.blockchain.enums.WalletType
+import com.ampnet.crowdfunding.blockchain.persistence.model.Transaction
 import com.ampnet.crowdfunding.blockchain.persistence.repository.TransactionRepository
 import com.ampnet.crowdfunding.blockchain.persistence.repository.WalletRepository
 import com.ampnet.crowdfunding.proto.AddWalletRequest
 import com.ampnet.crowdfunding.proto.BalanceRequest
-//import com.ampnet.crowdfunding.proto.GenerateActivateTxRequest
-import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
-import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
-import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
-//import com.ampnet.crowdfunding.proto.GenerateAddWalletTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
-import com.ampnet.crowdfunding.proto.GenerateCancelInvestmentTx
-import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
-import com.ampnet.crowdfunding.proto.GenerateTransferOwnershipTx
 import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
-import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
-import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
-//import com.ampnet.crowdfunding.proto.GetAllOrganizationsRequest
-import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
-import com.ampnet.crowdfunding.proto.OrganizationMembersRequest
-import com.ampnet.crowdfunding.proto.OrganizationProjectsRequest
-import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.PostTxRequest
 import com.ampnet.crowdfunding.proto.PostTxResponse
-import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentRequest
-import com.ampnet.crowdfunding.proto.ProjectDescriptionRequest
-import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
-import com.ampnet.crowdfunding.proto.ProjectLockedForInvestmentsRequest
-import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
-import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
-import com.ampnet.crowdfunding.proto.ProjectNameRequest
-import com.ampnet.crowdfunding.proto.ProjectTotalInvestmentForUserRequest
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import com.ampnet.crowdfunding.proto.WalletActiveRequest
 import org.assertj.core.api.Assertions.assertThat
@@ -46,6 +24,7 @@ import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
 import org.web3j.utils.Numeric
+import java.math.BigInteger
 
 class BlockchainServiceTest : TestBase() {
 
@@ -67,11 +46,12 @@ class BlockchainServiceTest : TestBase() {
             assertThat(transactionsResponse).hasSize(1)
 
             val tx = transactionsResponse.first()
-            assertThat(tx.type).isEqualTo(TransactionType.WALLET_CREATE)
-            assertThat(tx.fromAddress).isEqualTo(accounts.ampnetOwner.address)
-            assertThat(tx.toAddress).isEqualTo(applicationProperties.contracts.ampnetAddress)
-            assertThat(tx.amount).isEqualTo(null) // TODO: - fix
-            assertThat(tx.state).isEqualTo(TransactionState.MINED)
+            assertTransaction(
+                    tx,
+                    expectedFrom = accounts.ampnetOwner.address,
+                    expectedTo = applicationProperties.contracts.ampnetAddress,
+                    expectedType = TransactionType.WALLET_CREATE
+            )
         }
         verify("User wallet is stored in database") {
             val walletsResponse = walletRepository.findAll()
@@ -106,28 +86,97 @@ class BlockchainServiceTest : TestBase() {
             burn(accounts.bob.address, withdrawAmount)
             assertThat(getBalance(bobWalletTxHash)).isEqualTo(finalBalance)
         }
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(4)
+
+            // skip transactions[0] - wallet create (already tested)
+
+            val mintTx = transactions[1]
+            assertTransaction(
+                    mintTx,
+                    expectedFrom = accounts.eurOwner.address,
+                    expectedTo = accounts.bob.address,
+                    expectedType = TransactionType.DEPOSIT,
+                    expectedAmount = depositAmount
+            )
+
+            val approveTx = transactions[2]
+            assertTransaction(
+                    approveTx,
+                    expectedFrom = accounts.bob.address,
+                    expectedTo = accounts.eurOwner.address,
+                    expectedType = TransactionType.PENDING_WITHDRAW,
+                    expectedAmount = withdrawAmount
+            )
+
+            val burnTx = transactions[3]
+            assertTransaction(
+                    burnTx,
+                    expectedFrom = accounts.bob.address,
+                    expectedTo = accounts.eurOwner.address,
+                    expectedType = TransactionType.WITHDRAW,
+                    expectedAmount = withdrawAmount
+            )
+        }
     }
-//
-//    @Test
-//    fun mustBeAbleToTransferFunds() {
-//        val bobInitialBalance = 1000L // 10.00 EUR
-//        val aliceInitialBalance = 0L
-//        val bobToAliceAmount = 1000L
-//        val bobFinalBalance = bobInitialBalance - bobToAliceAmount
-//        val aliceFinalBalance = aliceInitialBalance + bobToAliceAmount
-//
-//        suppose("Users Bob and Alice are registered on AMPnet with their initial balances") {
-//            addWallet(accounts.bob.address)
-//            mint(accounts.bob.address, bobInitialBalance)
-//            addWallet(accounts.alice.address)
-//            mint(accounts.alice.address, aliceInitialBalance)
-//        }
-//        verify("Bob can transfer funds to Alice's wallet") {
-//            transfer(accounts.bob, accounts.alice.address, bobToAliceAmount)
-//            assertThat(getBalance(accounts.bob.address)).isEqualTo(bobFinalBalance)
-//            assertThat(getBalance(accounts.alice.address)).isEqualTo(aliceFinalBalance)
-//        }
-//    }
+
+    @Test
+    fun mustBeAbleToTransferFunds() {
+        val bobInitialBalance = 1000L // 10.00 EUR
+        val aliceInitialBalance = 0L
+        val bobToAliceAmount = 1000L
+        val bobFinalBalance = bobInitialBalance - bobToAliceAmount
+        val aliceFinalBalance = aliceInitialBalance + bobToAliceAmount
+
+        lateinit var bobTxHash: String
+        lateinit var aliceTxHash: String
+
+        suppose("Users Bob and Alice are registered on AMPnet with their initial balances") {
+            bobTxHash = addWallet(accounts.bob.address).txHash
+            mint(accounts.bob.address, bobInitialBalance)
+            aliceTxHash = addWallet(accounts.alice.address).txHash
+            mint(accounts.alice.address, aliceInitialBalance)
+        }
+        verify("Bob can transfer funds to Alice's wallet") {
+            transfer(bobTxHash, accounts.bob, aliceTxHash, bobToAliceAmount)
+            assertThat(getBalance(bobTxHash)).isEqualTo(bobFinalBalance)
+            assertThat(getBalance(aliceTxHash)).isEqualTo(aliceFinalBalance)
+        }
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(5)
+
+            // skip transactions[0 and 2] - wallet create (already tested)
+
+            val bobMintTx = transactions[1]
+            assertTransaction(
+                    bobMintTx,
+                    expectedFrom = accounts.eurOwner.address,
+                    expectedTo = accounts.bob.address,
+                    expectedType = TransactionType.DEPOSIT,
+                    expectedAmount = bobInitialBalance
+            )
+
+            val aliceMintTx = transactions[3]
+            assertTransaction(
+                    aliceMintTx,
+                    expectedFrom = accounts.eurOwner.address,
+                    expectedTo = accounts.alice.address,
+                    expectedType = TransactionType.DEPOSIT,
+                    expectedAmount = aliceInitialBalance
+            )
+
+            val transferTx = transactions[4]
+            assertTransaction(
+                    transferTx,
+                    expectedFrom = accounts.bob.address,
+                    expectedTo = accounts.alice.address,
+                    expectedType = TransactionType.TRANSFER,
+                    expectedAmount = bobToAliceAmount
+            )
+        }
+    }
 //
 //    @Test
 //    fun mustBeAbleToCreateAndActivateOrganization() {
@@ -362,22 +411,22 @@ class BlockchainServiceTest : TestBase() {
                         .build()
         )
     }
-//
-//    private fun transfer(from: Credentials, to: String, amount: Long) {
-//        val transferTx = grpc.generateTransferTx(
-//                GenerateTransferTxRequest.newBuilder()
-//                        .setFrom(from.address)
-//                        .setTo(to)
-//                        .setAmount(amount)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(transferTx, from))
-//                        .build()
-//        )
-//    }
-//
+
+    private fun transfer(fromTxHash: String, from: Credentials, toTxHash: String, amount: Long) {
+        val transferTx = grpc.generateTransferTx(
+                GenerateTransferTxRequest.newBuilder()
+                        .setFromTxHash(fromTxHash)
+                        .setToTxHash(toTxHash)
+                        .setAmount(amount)
+                        .build()
+        )
+        grpc.postTransaction(
+                PostTxRequest.newBuilder()
+                        .setData(sign(transferTx, from))
+                        .build()
+        )
+    }
+
 //    private fun addAndApproveOrganization(admin: Credentials, name: String): String {
 //        val addOrgTx = grpc.generateAddOrganizationTx(
 //                GenerateAddOrganizationTxRequest.newBuilder()
@@ -649,5 +698,26 @@ class BlockchainServiceTest : TestBase() {
         return Numeric.toHexString(
                 TransactionEncoder.signMessage(rawTx, credentials)
         )
+    }
+
+    // Helper functions
+
+    private fun assertTransaction(
+        tx: Transaction,
+        expectedFrom: String,
+        expectedTo: String,
+        expectedType: TransactionType,
+        expectedAmount: Long? = null
+    ) {
+        assertThat(tx.fromAddress).isEqualTo(expectedFrom)
+        assertThat(tx.toAddress).isEqualTo(expectedTo)
+        assertThat(tx.type).isEqualTo(expectedType)
+        assertThat(tx.state).isEqualTo(TransactionState.MINED)
+        assertThat(tx.amount).isEqualTo(eurToToken(expectedAmount))
+    }
+
+    private fun eurToToken(eur: Long?): BigInteger? {
+        val centToTokenFactor = BigInteger("10000000000000000") // 10e16
+        return eur?.let { eur.toBigInteger().times(centToTokenFactor) } ?: run { null }
     }
 }
