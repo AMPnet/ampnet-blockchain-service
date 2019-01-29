@@ -6,10 +6,10 @@ import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
 import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Address
-import org.web3j.abi.datatypes.Bool
-import org.web3j.abi.datatypes.DynamicArray
-import org.web3j.abi.datatypes.Function
 import org.web3j.abi.datatypes.Utf8String
+import org.web3j.abi.datatypes.DynamicArray
+import org.web3j.abi.datatypes.Bool
+import org.web3j.abi.datatypes.Function
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.RawTransaction
 import org.web3j.protocol.Web3j
