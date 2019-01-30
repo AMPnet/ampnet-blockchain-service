@@ -7,6 +7,7 @@ import com.ampnet.crowdfunding.blockchain.service.WalletService
 import io.grpc.Status
 import org.springframework.stereotype.Service
 import org.web3j.protocol.Web3j
+import javax.transaction.Transactional
 
 @Service
 class WalletServiceImpl(
@@ -15,7 +16,8 @@ class WalletServiceImpl(
     val web3j: Web3j
 ) : WalletService {
 
-    override fun getWallet(txHash: String): String {
+    @Transactional
+    override fun getAddress(txHash: String): String {
         val wallet = walletRepository.findByHash(txHash).orElseThrow {
             throw Status.NOT_FOUND
                     .withDescription("Wallet creation tx: $txHash does not exist!")
@@ -28,8 +30,30 @@ class WalletServiceImpl(
         }
     }
 
+    @Transactional
+    override fun getPublicKey(txHash: String): String? {
+        val wallet = walletRepository.findByHash(txHash).orElseThrow {
+            throw Status.NOT_FOUND
+                    .withDescription("Wallet creation tx: $txHash does not exist!")
+                    .asRuntimeException()
+        }
+        return wallet.publicKey
+    }
+
+    @Transactional
+    override fun storePublicKey(publicKey: String, forTxHash: String) {
+        val wallet = walletRepository.findByHash(forTxHash).orElseThrow {
+            throw Status.NOT_FOUND
+                    .withDescription("Wallet with txHash: $forTxHash does not exist")
+                    .asRuntimeException()
+        }
+        wallet.publicKey = publicKey
+        walletRepository.save(wallet)
+    }
+
     private fun cacheAddressInWallet(wallet: Wallet, address: String) {
         wallet.address = address
         walletRepository.save(wallet)
     }
+
 }

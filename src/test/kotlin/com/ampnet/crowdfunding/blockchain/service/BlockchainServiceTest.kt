@@ -38,7 +38,7 @@ class BlockchainServiceTest : TestBase() {
     fun mustBeAbleToRegisterUser() {
         lateinit var txResponse: PostTxResponse
         verify("User can be created") {
-            txResponse = addWallet(accounts.bob.address)
+            txResponse = addWallet(accounts.bob)
             assertThat(isWalletActive(txResponse.txHash)).isTrue()
         }
         verify("User creation transaction is stored in database") {
@@ -61,6 +61,7 @@ class BlockchainServiceTest : TestBase() {
             assertThat(wallet.hash).isEqualTo(txResponse.txHash)
             assertThat(wallet.type).isEqualTo(WalletType.USER)
             assertThat(wallet.address).isEqualTo(accounts.bob.address)
+            assertThat(wallet.publicKey).isEqualTo(getPublicKey(accounts.bob))
         }
     }
 
@@ -73,8 +74,9 @@ class BlockchainServiceTest : TestBase() {
 
         lateinit var bobWalletTxHash: String
 
+        accounts.bob.ecKeyPair.privateKey.toByteArray()
         suppose("User Bob is registered on AMPnet and has zero balance") {
-            bobWalletTxHash = addWallet(accounts.bob.address).txHash
+            bobWalletTxHash = addWallet(accounts.bob).txHash
             assertThat(getBalance(bobWalletTxHash)).isEqualTo(initialBalance)
         }
         verify("Bob can deposit some amount of EUR") {
@@ -133,9 +135,9 @@ class BlockchainServiceTest : TestBase() {
         lateinit var aliceTxHash: String
 
         suppose("Users Bob and Alice are registered on AMPnet with their initial balances") {
-            bobTxHash = addWallet(accounts.bob.address).txHash
+            bobTxHash = addWallet(accounts.bob).txHash
             mint(accounts.bob.address, bobInitialBalance)
-            aliceTxHash = addWallet(accounts.alice.address).txHash
+            aliceTxHash = addWallet(accounts.alice).txHash
             mint(accounts.alice.address, aliceInitialBalance)
         }
         verify("Bob can transfer funds to Alice's wallet") {
@@ -359,10 +361,13 @@ class BlockchainServiceTest : TestBase() {
 
     /** HELPER FUNCTIONS */
 
-    private fun addWallet(address: String): PostTxResponse {
+    private fun addWallet(wallet: Credentials): PostTxResponse {
+        val address = wallet.address
+        val publicKey = getPublicKey(wallet)
         return grpc.addWallet(
                 AddWalletRequest.newBuilder()
-                        .setWallet(address)
+                        .setAddress(address)
+                        .setPublicKey(publicKey)
                         .build()
         )
     }
@@ -378,6 +383,7 @@ class BlockchainServiceTest : TestBase() {
         grpc.postTransaction(
                 PostTxRequest.newBuilder()
                         .setData(sign(tx, accounts.eurOwner))
+                        .setTxType(typeToProto(TransactionType.DEPOSIT))
                         .build()
         )
     }
@@ -393,6 +399,7 @@ class BlockchainServiceTest : TestBase() {
         grpc.postTransaction(
                 PostTxRequest.newBuilder()
                         .setData(sign(approveTx, fromCredentials))
+                        .setTxType(typeToProto(TransactionType.PENDING_WITHDRAW))
                         .build()
         )
     }
@@ -408,6 +415,7 @@ class BlockchainServiceTest : TestBase() {
         grpc.postTransaction(
                 PostTxRequest.newBuilder()
                         .setData(sign(burnTx, accounts.eurOwner))
+                        .setTxType(typeToProto(TransactionType.WITHDRAW))
                         .build()
         )
     }
@@ -423,6 +431,7 @@ class BlockchainServiceTest : TestBase() {
         grpc.postTransaction(
                 PostTxRequest.newBuilder()
                         .setData(sign(transferTx, from))
+                        .setTxType(typeToProto(TransactionType.TRANSFER))
                         .build()
         )
     }
@@ -719,5 +728,15 @@ class BlockchainServiceTest : TestBase() {
     private fun eurToToken(eur: Long?): BigInteger? {
         val centToTokenFactor = BigInteger("10000000000000000") // 10e16
         return eur?.let { eur.toBigInteger().times(centToTokenFactor) } ?: run { null }
+    }
+
+    private fun getPublicKey(account: Credentials): String {
+        return Numeric.toHexString(
+                account.ecKeyPair.publicKey.toByteArray()
+        )
+    }
+
+    private fun typeToProto(type: TransactionType): com.ampnet.crowdfunding.proto.TransactionType {
+        return com.ampnet.crowdfunding.proto.TransactionType.valueOf(type.name)
     }
 }

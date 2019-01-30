@@ -23,6 +23,9 @@ data class Wallet(
     @Column
     var address: String?,
 
+    @Column
+    var publicKey: String?,
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 7)
     var type: WalletType

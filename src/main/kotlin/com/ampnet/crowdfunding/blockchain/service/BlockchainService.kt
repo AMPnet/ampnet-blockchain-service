@@ -3,6 +3,7 @@ package com.ampnet.crowdfunding.blockchain.service
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
 import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
 import com.ampnet.crowdfunding.blockchain.contract.EurService
+import com.ampnet.crowdfunding.blockchain.enums.TransactionType
 import com.ampnet.crowdfunding.proto.BlockchainServiceGrpc
 import com.ampnet.crowdfunding.proto.AddWalletRequest
 import com.ampnet.crowdfunding.proto.PostTxRequest
@@ -40,10 +41,11 @@ class BlockchainService(
             val credentials = Credentials.create(properties.accounts.ampnetPrivateKey)
             val tx = ampnetService.generateAddWalletTx(
                     credentials.address,
-                    request.wallet
+                    request.address
             )
             val signedTx = sign(tx, credentials)
-            post(signedTx) { response ->
+            post(signedTx, TransactionType.WALLET_CREATE) { response ->
+                walletService.storePublicKey(request.publicKey, response.txHash)
                 responseObserver.onNext(response)
                 responseObserver.onCompleted()
             }
@@ -54,10 +56,10 @@ class BlockchainService(
 
     override fun isWalletActive(request: WalletActiveRequest, responseObserver: StreamObserver<WalletActiveResponse>) {
         try {
-            val wallet = walletService.getWallet(request.walletTxHash)
+            val address = walletService.getAddress(request.walletTxHash)
             responseObserver.onNext(
                     WalletActiveResponse.newBuilder()
-                            .setActive(ampnetService.isWalletActive(wallet))
+                            .setActive(ampnetService.isWalletActive(address))
                             .build()
             )
             responseObserver.onCompleted()
@@ -125,13 +127,14 @@ class BlockchainService(
 
     override fun generateApproveTx(request: GenerateApproveTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
         try {
-            val wallet = walletService.getWallet(request.fromTxHash)
+            val publicKey = walletService.getPublicKey(request.fromTxHash)
+            val address = walletService.getAddress(request.fromTxHash)
             val tx = eurService.generateApproveTx(
-                    wallet,
+                    address,
                     request.approve,
                     eurToToken(request.amount)
             )
-            responseObserver.onNext(convert(tx))
+            responseObserver.onNext(convert(tx, publicKey))
             responseObserver.onCompleted()
         } catch (e: Exception) {
             responseObserver.onError(e)
@@ -140,7 +143,7 @@ class BlockchainService(
 
     override fun getBalance(request: BalanceRequest, responseObserver: StreamObserver<BalanceResponse>) {
         try {
-            val wallet = walletService.getWallet(request.walletTxHash)
+            val wallet = walletService.getAddress(request.walletTxHash)
             val balance = eurService.balanceOf(wallet)
             val response = BalanceResponse.newBuilder()
                     .setBalance(tokenToEur(balance))
@@ -164,14 +167,15 @@ class BlockchainService(
 //
     override fun generateTransferTx(request: GenerateTransferTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
         try {
-            val fromWallet = walletService.getWallet(request.fromTxHash)
-            val toWallet = walletService.getWallet(request.toTxHash)
+            val fromWallet = walletService.getAddress(request.fromTxHash)
+            val toWallet = walletService.getAddress(request.toTxHash)
+            val publicKey = walletService.getPublicKey(request.fromTxHash)
             val tx = eurService.generateTransferTx(
                     fromWallet,
                     toWallet,
                     eurToToken(request.amount)
             )
-            responseObserver.onNext(convert(tx))
+            responseObserver.onNext(convert(tx, publicKey))
             responseObserver.onCompleted()
         } catch (e: Exception) {
             responseObserver.onError(e)
@@ -364,7 +368,7 @@ class BlockchainService(
 
     override fun postTransaction(request: PostTxRequest, responseObserver: StreamObserver<PostTxResponse>) {
         try {
-            post(request.data) { response ->
+            post(request.data, TransactionType.valueOf(request.txType.name)) { response ->
                 responseObserver.onNext(response)
                 responseObserver.onCompleted()
             }
@@ -378,24 +382,24 @@ class BlockchainService(
         return Numeric.toHexString(signedTx)
     }
 
-    private fun post(txData: String, onComplete: (PostTxResponse) -> Unit) {
-        transactionService.postAndCacheTransaction(txData) { tx ->
+    private fun post(txData: String, txType: TransactionType, onComplete: (PostTxResponse) -> Unit) {
+        transactionService.postAndCacheTransaction(txData, txType) { tx ->
             onComplete(
                     PostTxResponse.newBuilder()
                     .setTxHash(tx.hash)
-                    .setTxType(com.ampnet.crowdfunding.proto.TransactionType.valueOf(tx.type.name))
                     .build()
             )
         }
     }
 
-    private fun convert(tx: RawTransaction): RawTxResponse {
+    private fun convert(tx: RawTransaction, publicKey: String? = null): RawTxResponse {
         return RawTxResponse.newBuilder()
                 .setData(tx.data)
                 .setGasLimit(tx.gasLimit.longValueExact())
                 .setGasPrice(tx.gasPrice.longValueExact())
                 .setNonce(tx.nonce.longValueExact())
                 .setTo(tx.to)
+                .setPublicKey(publicKey ?: "")
                 .build()
     }
 

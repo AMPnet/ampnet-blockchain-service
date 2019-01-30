@@ -1,10 +1,11 @@
 package com.ampnet.crowdfunding.blockchain.service
 
+import com.ampnet.crowdfunding.blockchain.enums.TransactionType
 import com.ampnet.crowdfunding.blockchain.persistence.model.Transaction
 
 interface TransactionService {
 
-    fun postAndCacheTransaction(txData: String, onComplete: (Transaction) -> Unit)
+    fun postAndCacheTransaction(txData: String, txType: TransactionType, onComplete: (Transaction) -> Unit)
 
     fun getTransaction(txHash: String): Transaction
 
