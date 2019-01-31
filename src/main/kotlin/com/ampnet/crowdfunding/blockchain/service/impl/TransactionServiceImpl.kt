@@ -15,7 +15,6 @@ import org.web3j.abi.TypeDecoder
 import org.web3j.abi.datatypes.Address
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.Credentials
-import org.web3j.crypto.Hash
 import org.web3j.crypto.SignedRawTransaction
 import org.web3j.crypto.TransactionDecoder
 import org.web3j.protocol.Web3j
@@ -29,8 +28,10 @@ class TransactionServiceImpl(
     val properties: ApplicationProperties
 ) : TransactionService {
 
-    override fun postAndCacheTransaction(txData: String, onComplete: (Transaction) -> Unit) {
+    @Transactional
+    override fun postAndCacheTransaction(txData: String, txType: TransactionType, onComplete: (Transaction) -> Unit) {
         throwIfCallerNotMemberOfAmpnet(txData)
+        throwIfTxTypeDoesNotMatchActualTx(txData, txType)
         web3j.ethSendRawTransaction(txData).sendAsync().thenAccept { sendTx ->
             val txHash = sendTx.transactionHash
             val tx = persistTransaction(txData, txHash)
@@ -49,6 +50,7 @@ class TransactionServiceImpl(
         }
     }
 
+    @Transactional
     override fun getTransaction(txHash: String): Transaction {
         val tx = transactionRepository.findByHash(txHash)
         if (!tx.isPresent) {
@@ -59,10 +61,12 @@ class TransactionServiceImpl(
         return tx.get()
     }
 
+    @Transactional
     override fun getAllTransactions(wallet: String): List<Transaction> {
         TODO("not implemented") // To change body of created functions use File | Settings | File Templates.
     }
 
+    @Transactional
     override fun getAddressFromHash(hash: String): String {
         val tx = getTransaction(hash)
         when (tx.state) {
@@ -92,6 +96,7 @@ class TransactionServiceImpl(
         }
     }
 
+    @Transactional
     override fun updateTransactionStates() {
         val pendingTransactions = transactionRepository.findAllPending()
         for (tx in pendingTransactions) {
@@ -106,18 +111,17 @@ class TransactionServiceImpl(
         }
     }
 
-    @Transactional
-    fun persistTransaction(txData: String, txHash: String): Transaction {
+    private fun persistTransaction(txData: String, txHash: String): Transaction {
         val signedTx = TransactionDecoder.decode(txData) as SignedRawTransaction
         val toAddress = signedTx.to
         val input = signedTx.data
-        val functionHash = "0x${input.substring(0, 8)}"
+        val functionHash = input.substring(0, 8)
         val inputData = input.substring(8)
 
         // TODO: - refactor
         if (toAddress == properties.contracts.ampnetAddress) {
             when (functionHash) {
-                Hash.sha3String("addWallet(address)").substring(0, 10) -> {
+                TransactionType.WALLET_CREATE.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
                     tx.hash = txHash
                     tx.fromAddress = signedTx.from
@@ -144,7 +148,7 @@ class TransactionServiceImpl(
             }
         } else if (toAddress == properties.contracts.eurAddress) {
             when (functionHash) {
-                Hash.sha3String("mint(address,uint256)").substring(0, 10) -> {
+                TransactionType.DEPOSIT.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
 
                     val refMethod = TypeDecoder::class.java.getDeclaredMethod(
@@ -171,7 +175,7 @@ class TransactionServiceImpl(
 
                     return tx
                 }
-                Hash.sha3String("burnFrom(address,uint256)").substring(0, 10) -> {
+                TransactionType.WITHDRAW.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
 
                     val refMethod = TypeDecoder::class.java.getDeclaredMethod(
@@ -198,7 +202,7 @@ class TransactionServiceImpl(
 
                     return tx
                 }
-                Hash.sha3String("approve(address,uint256)").substring(0, 10) -> {
+                TransactionType.PENDING_WITHDRAW.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
 
                     val refMethod = TypeDecoder::class.java.getDeclaredMethod(
@@ -225,7 +229,7 @@ class TransactionServiceImpl(
 
                     return tx
                 }
-                Hash.sha3String("transfer(address,uint256)").substring(0, 10) -> {
+                TransactionType.TRANSFER.functionHash -> {
                     val refMethod = TypeDecoder::class.java.getDeclaredMethod(
                             "decode",
                             String::class.java,
@@ -295,6 +299,17 @@ class TransactionServiceImpl(
                 .asRuntimeException()
     }
 
+    private fun throwIfTxTypeDoesNotMatchActualTx(txData: String, txType: TransactionType) {
+        val tx = TransactionDecoder.decode(txData)
+        val functionSignature = tx.data.substring(0, 8)
+        val actualType = TransactionType.fromFunctionHash(functionSignature)
+        if (actualType != txType) {
+            throw Status.PERMISSION_DENIED
+                    .withDescription("Signed transaction does not match provided tx type.")
+                    .asRuntimeException()
+        }
+    }
+
     private fun decodeAddress(input: String): String {
         val refMethod = TypeDecoder::class.java.getDeclaredMethod(
                 "decode",
@@ -306,3 +321,29 @@ class TransactionServiceImpl(
         return address.value
     }
 }
+
+/*
+    companion object {
+        fun fromFunctionHash(hash: String): TransactionType {
+            return when (hash) {
+                WALLET_CREATE.functionHash      -> { WALLET_CREATE }
+                ORG_CREATE.functionHash         -> { ORG_CREATE }
+                DEPOSIT.functionHash            -> { DEPOSIT }
+                PENDING_WITHDRAW.functionHash   -> { PENDING_WITHDRAW }
+                WITHDRAW.functionHash           -> { WITHDRAW }
+                INVEST.functionHash             -> { INVEST }
+                TRANSFER.functionHash           -> { TRANSFER}
+                ORG_ADD_MEMBER.functionHash     -> { ORG_ADD_MEMBER }
+                ORG_ADD_PROJECT.functionHash    -> { ORG_ADD_PROJECT }
+                ORG_ACTIVATE.functionHash       -> { ORG_ACTIVATE }
+                TRANSFER_OWNERSHIP.functionHash -> { TRANSFER_OWNERSHIP }
+                CANCEL_INVESTMENT.functionHash  -> { CANCEL_INVESTMENT }
+                else -> {
+                    throw Status.INVALID_ARGUMENT
+                            .withDescription("Invalid transaction function call! Function not recognized.")
+                            .asRuntimeException()
+                }
+            }
+        }
+    }
+ */
