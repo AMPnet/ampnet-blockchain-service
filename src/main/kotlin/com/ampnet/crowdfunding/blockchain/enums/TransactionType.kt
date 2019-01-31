@@ -25,9 +25,7 @@ enum class TransactionType(val functionHash: String) {
                 ?: throw Status.INVALID_ARGUMENT
                         .withDescription("Invalid transaction function call! Function not recognized.")
                         .asRuntimeException()
-
     }
-
 }
 
 object EthUtilities {

@@ -55,5 +55,4 @@ class WalletServiceImpl(
         wallet.address = address
         walletRepository.save(wallet)
     }
-
 }

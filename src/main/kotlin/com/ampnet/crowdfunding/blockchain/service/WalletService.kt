@@ -7,5 +7,4 @@ interface WalletService {
     fun getPublicKey(txHash: String): String?
 
     fun storePublicKey(publicKey: String, forTxHash: String)
-
 }

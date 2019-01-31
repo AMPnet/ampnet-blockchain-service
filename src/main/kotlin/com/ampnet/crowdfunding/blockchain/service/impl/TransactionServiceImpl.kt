@@ -15,7 +15,6 @@ import org.web3j.abi.TypeDecoder
 import org.web3j.abi.datatypes.Address
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.Credentials
-import org.web3j.crypto.Hash
 import org.web3j.crypto.SignedRawTransaction
 import org.web3j.crypto.TransactionDecoder
 import org.web3j.protocol.Web3j
