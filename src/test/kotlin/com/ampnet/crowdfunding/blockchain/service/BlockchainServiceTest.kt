@@ -7,12 +7,17 @@ import com.ampnet.crowdfunding.blockchain.enums.WalletType
 import com.ampnet.crowdfunding.blockchain.persistence.model.Transaction
 import com.ampnet.crowdfunding.blockchain.persistence.repository.TransactionRepository
 import com.ampnet.crowdfunding.blockchain.persistence.repository.WalletRepository
+import com.ampnet.crowdfunding.proto.ActivateOrganizationRequest
 import com.ampnet.crowdfunding.proto.AddWalletRequest
 import com.ampnet.crowdfunding.proto.BalanceRequest
+import com.ampnet.crowdfunding.proto.Empty
+import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
 import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
+import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
+import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.PostTxRequest
 import com.ampnet.crowdfunding.proto.PostTxResponse
 import com.ampnet.crowdfunding.proto.RawTxResponse
@@ -179,19 +184,22 @@ class BlockchainServiceTest : TestBase() {
             )
         }
     }
-//
-//    @Test
-//    fun mustBeAbleToCreateAndActivateOrganization() {
-//        suppose("User Bob is registered on AMPnet") {
-//            addWallet(accounts.bob.address)
-//        }
-//        verify("Bob can create organization") {
-//            val organization = addAndApproveOrganization(accounts.bob, "Greenpeace")
-//            assertThat(getAllOrganizations(accounts.bob.address)).hasSize(1)
-//            assertThat(organizationExists(organization))
-//            assertThat(organizationActive(organization))
-//        }
-//    }
+
+    @Test
+    fun mustBeAbleToCreateAndActivateOrganization() {
+        lateinit var bobTxHash: String
+        lateinit var orgTxHash: String
+        suppose("User Bob is registered on AMPnet") {
+            bobTxHash = addWallet(accounts.bob).txHash
+        }
+        verify("Bob can create organization") {
+            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob, "Greenpeace")
+            assertThat(getAllOrganizations(accounts.bob.address)).hasSize(1)
+            assertThat(organizationExists(orgTxHash))
+            assertThat(organizationActive(orgTxHash))
+        }
+
+    }
 //
 //    @Test
 //    fun mustBeAbleToAddUserToOrganization() {
@@ -436,35 +444,26 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-//    private fun addAndApproveOrganization(admin: Credentials, name: String): String {
-//        val addOrgTx = grpc.generateAddOrganizationTx(
-//                GenerateAddOrganizationTxRequest.newBuilder()
-//                        .setFrom(admin.address)
-//                        .setName(name)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(addOrgTx, admin))
-//                        .build()
-//        )
-//
-//        val organizations = getAllOrganizations(admin.address)
-//        val activateOrgTx = grpc.generateActivateOrganizationTx(
-//                GenerateActivateTxRequest.newBuilder()
-//                        .setFrom(accounts.ampnetOwner.address)
-//                        .setOrganization(organizations.first())
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(activateOrgTx, accounts.ampnetOwner))
-//                        .build()
-//        )
-//
-//        return organizations.first()
-//    }
-//
+    private fun addAndApproveOrganization(adminTxHash: String, admin: Credentials, name: String): String {
+        val addOrgTx = grpc.generateAddOrganizationTx(
+                GenerateAddOrganizationTxRequest.newBuilder()
+                        .setFromTxHash(adminTxHash)
+                        .setName(name)
+                        .build()
+        )
+        val orgCreateTxHash = grpc.postTransaction(
+                PostTxRequest.newBuilder()
+                        .setData(sign(addOrgTx, admin))
+                        .build()
+        ).txHash
+        grpc.activateOrganization(
+                ActivateOrganizationRequest.newBuilder()
+                        .setOrganizationTxHash(orgCreateTxHash)
+                        .build()
+        )
+        return orgCreateTxHash
+    }
+
     private fun isWalletActive(fromTxHash: String): Boolean {
         return grpc.isWalletActive(
                 WalletActiveRequest.newBuilder()
@@ -472,24 +471,23 @@ class BlockchainServiceTest : TestBase() {
                         .build()
         ).active
     }
-//
-//    private fun organizationExists(organization: String): Boolean {
-//        return grpc.organizationExists(
-//                OrganizationExistsRequest.newBuilder()
-//                        .setFrom(organization)
-//                        .setOrganization(organization)
-//                        .build()
-//        ).exists
-//    }
-//
-//    private fun organizationActive(organization: String): Boolean {
-//        return grpc.isOrganizationVerified(
-//                OrganizationVerifiedRequest.newBuilder()
-//                        .setOrganization(organization)
-//                        .build()
-//        ).verified
-//    }
-//
+
+    private fun organizationExists(orgTxHash: String): Boolean {
+        return grpc.organizationExists(
+                OrganizationExistsRequest.newBuilder()
+                        .setOrganizationTxHash(orgTxHash)
+                        .build()
+        ).exists
+    }
+
+    private fun organizationActive(orgTxHash: String): Boolean {
+        return grpc.isOrganizationVerified(
+                OrganizationVerifiedRequest.newBuilder()
+                        .setOrganizationTxHash(orgTxHash)
+                        .build()
+        ).verified
+    }
+
     private fun getBalance(txHash: String): Long {
         return grpc.getBalance(
                 BalanceRequest.newBuilder()
@@ -497,14 +495,12 @@ class BlockchainServiceTest : TestBase() {
                         .build()
         ).balance
     }
-//
-//    private fun getAllOrganizations(from: String): List<String> {
-//        return grpc.getAllOrganizations(
-//                GetAllOrganizationsRequest.newBuilder()
-//                        .setFrom(from)
-//                        .build()
-//        ).organizationsList
-//    }
+
+    private fun getAllOrganizations(from: String): List<String> {
+        return grpc.getAllOrganizations(
+                Empty.getDefaultInstance()
+        ).organizationsList
+    }
 //
 //    private fun addOrganizationMember(organization: String, admin: Credentials, member: String) {
 //        val addMemberTx = grpc.generateAddOrganizationMemberTx(

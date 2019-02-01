@@ -3,7 +3,9 @@ package com.ampnet.crowdfunding.blockchain.service
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
 import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
 import com.ampnet.crowdfunding.blockchain.contract.EurService
+import com.ampnet.crowdfunding.blockchain.contract.OrganizationService
 import com.ampnet.crowdfunding.blockchain.enums.TransactionType
+import com.ampnet.crowdfunding.proto.ActivateOrganizationRequest
 import com.ampnet.crowdfunding.proto.BlockchainServiceGrpc
 import com.ampnet.crowdfunding.proto.AddWalletRequest
 import com.ampnet.crowdfunding.proto.PostTxRequest
@@ -16,6 +18,11 @@ import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.proto.BalanceRequest
 import com.ampnet.crowdfunding.proto.BalanceResponse
+import com.ampnet.crowdfunding.proto.Empty
+import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
+import com.ampnet.crowdfunding.proto.GetAllOrganizationsResponse
+import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
+import com.ampnet.crowdfunding.proto.OrganizationExistsResponse
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import io.grpc.stub.StreamObserver
 import org.lognet.springboot.grpc.GRpcService
@@ -31,6 +38,7 @@ class BlockchainService(
     val walletService: WalletService,
     val ampnetService: AmpnetService,
     val eurService: EurService,
+    val organizationService: OrganizationService,
     val properties: ApplicationProperties
 ) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
@@ -68,35 +76,48 @@ class BlockchainService(
         }
     }
 
-//    override fun generateAddOrganizationTx(request: GenerateAddOrganizationTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-//        val address = getAddressFromTxHash()
-//        val tx = ampnetService.generateAddOrganizationTx(
-//                request.from,
-//                request.name
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun getAllOrganizations(request: GetAllOrganizationsRequest, responseObserver: StreamObserver<GetAllOrganizationsResponse>) {
-//        responseObserver.onNext(
-//                GetAllOrganizationsResponse.newBuilder()
-//                        .addAllOrganizations(ampnetService.getAllOrganizations())
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
-//
-//    override fun organizationExists(request: OrganizationExistsRequest, responseObserver: StreamObserver<OrganizationExistsResponse>) {
-//        responseObserver.onNext(
-//                OrganizationExistsResponse.newBuilder()
-//                        .setExists(ampnetService.organizationExists(request.organization))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
+    override fun generateAddOrganizationTx(request: GenerateAddOrganizationTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        try {
+            val wallet = walletService.getAddress(request.fromTxHash)
+            val tx = ampnetService.generateAddOrganizationTx(
+                    wallet,
+                    request.name
+            )
+            responseObserver.onNext(convert(tx))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun getAllOrganizations(request: Empty, responseObserver: StreamObserver<GetAllOrganizationsResponse>) {
+        try {
+            responseObserver.onNext(
+                    GetAllOrganizationsResponse.newBuilder()
+                            .addAllOrganizations(ampnetService.getAllOrganizations())
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
+
+    override fun organizationExists(request: OrganizationExistsRequest, responseObserver: StreamObserver<OrganizationExistsResponse>) {
+        try {
+            val wallet = walletService.getAddress(request.organizationTxHash)
+            responseObserver.onNext(
+                    OrganizationExistsResponse.newBuilder()
+                            .setExists(ampnetService.organizationExists(wallet))
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
     override fun generateMintTx(request: GenerateMintTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
         try {
             val tx = eurService.generateMintTx(
@@ -181,17 +202,16 @@ class BlockchainService(
             responseObserver.onError(e)
         }
     }
-//
-//    override fun generateActivateOrganizationTx(request: GenerateActivateTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = organizationService.generateActivateTx(
-//                request.from,
-//                request.organization
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun generateWithdrawOrganizationFundsTx(request: GenerateWithdrawOrganizationFundsTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+
+    override fun activateOrganization(request: ActivateOrganizationRequest, responseObserver: StreamObserver<PostTxResponse>) {
+        try {
+            val credentials = Credentials.create("")
+            val wallet = walletService.getAddress(request.organizationTxHash)
+            val activateOrgTx = organizationService.generateActivateTx(properties)
+        }
+    }
+
+    //    override fun generateWithdrawOrganizationFundsTx(request: GenerateWithdrawOrganizationFundsTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
 //        val tx = organizationService.generateWithdrawFundsTx(
 //                request.from,
 //                request.organization,
@@ -226,18 +246,18 @@ class BlockchainService(
 //        responseObserver.onCompleted()
 //    }
 //
-//    override fun isOrganizationVerified(request: OrganizationVerifiedRequest, responseObserver: StreamObserver<OrganizationVerifiedResponse>) {
-//        val verified = organizationService.isVerified(
-//                request.organization
-//        )
-//        responseObserver.onNext(
-//                OrganizationVerifiedResponse.newBuilder()
-//                        .setVerified(verified)
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
+    override fun isOrganizationVerified(request: OrganizationVerifiedRequest, responseObserver: StreamObserver<OrganizationVerifiedResponse>) {
+        val verified = organizationService.isVerified(
+                request.organization
+        )
+        responseObserver.onNext(
+                OrganizationVerifiedResponse.newBuilder()
+                        .setVerified(verified)
+                        .build()
+        )
+        responseObserver.onCompleted()
+    }
+
 //    override fun getAllOrganizationProjects(request: OrganizationProjectsRequest, responseObserver: StreamObserver<OrganizationProjectsResponse>) {
 //        val projects = organizationService.getAllProjects(
 //                request.organization
