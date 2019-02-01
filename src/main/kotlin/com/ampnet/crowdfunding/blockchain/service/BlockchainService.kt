@@ -52,11 +52,12 @@ class BlockchainService(
                     request.address
             )
             val signedTx = sign(tx, credentials)
-            post(signedTx, TransactionType.WALLET_CREATE) { response ->
-                walletService.storePublicKey(request.publicKey, response.txHash)
-                responseObserver.onNext(response)
-                responseObserver.onCompleted()
-            }
+            val response = post(signedTx, TransactionType.WALLET_CREATE)
+
+            walletService.storePublicKey(request.publicKey, response.txHash)
+
+            responseObserver.onNext(response)
+            responseObserver.onCompleted()
         } catch (e: Exception) {
             responseObserver.onError(e)
         }
@@ -388,10 +389,10 @@ class BlockchainService(
 
     override fun postTransaction(request: PostTxRequest, responseObserver: StreamObserver<PostTxResponse>) {
         try {
-            post(request.data, TransactionType.valueOf(request.txType.name)) { response ->
-                responseObserver.onNext(response)
-                responseObserver.onCompleted()
-            }
+            responseObserver.onNext(
+                    post(request.data, TransactionType.valueOf(request.txType.name))
+            )
+            responseObserver.onCompleted()
         } catch (e: Exception) {
             responseObserver.onError(e)
         }
@@ -402,14 +403,11 @@ class BlockchainService(
         return Numeric.toHexString(signedTx)
     }
 
-    private fun post(txData: String, txType: TransactionType, onComplete: (PostTxResponse) -> Unit) {
-        transactionService.postAndCacheTransaction(txData, txType) { tx ->
-            onComplete(
-                    PostTxResponse.newBuilder()
-                    .setTxHash(tx.hash)
-                    .build()
-            )
-        }
+    private fun post(txData: String, txType: TransactionType): PostTxResponse {
+        val tx = transactionService.postAndCacheTransaction(txData, txType)
+        return PostTxResponse.newBuilder()
+                .setTxHash(tx.hash)
+                .build()
     }
 
     private fun convert(tx: RawTransaction, publicKey: String? = null): RawTxResponse {
