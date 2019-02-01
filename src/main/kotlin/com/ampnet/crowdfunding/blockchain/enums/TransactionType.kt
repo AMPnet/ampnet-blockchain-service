@@ -16,7 +16,7 @@ enum class TransactionType(val functionHash: String) {
     ORG_ADD_PROJECT(EthUtilities.getFunctionHash("addProject(string,string,uint256,uint256,uint256)")),
     ORG_ACTIVATE(EthUtilities.getFunctionHash("activate()")),
     TRANSFER_OWNERSHIP(EthUtilities.getFunctionHash("transferOwnership(address,uint256)")),
-    CANCEL_INVESTMENT("cancelInvestment(uint256)");
+    CANCEL_INVESTMENT(EthUtilities.getFunctionHash("cancelInvestment(uint256)"));
 
     companion object {
         private val map = TransactionType.values().associateBy(TransactionType::functionHash)
@@ -29,5 +29,5 @@ enum class TransactionType(val functionHash: String) {
 }
 
 object EthUtilities {
-    fun getFunctionHash(signature: String) = Hash.sha3String(signature).substring(2, 10)
+    fun getFunctionHash(signature: String) = Hash.sha3String(signature).substring(2, 10).toLowerCase()
 }

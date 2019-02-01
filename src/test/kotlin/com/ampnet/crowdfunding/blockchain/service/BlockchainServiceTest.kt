@@ -74,7 +74,6 @@ class BlockchainServiceTest : TestBase() {
 
         lateinit var bobWalletTxHash: String
 
-        accounts.bob.ecKeyPair.privateKey.toByteArray()
         suppose("User Bob is registered on AMPnet and has zero balance") {
             bobWalletTxHash = addWallet(accounts.bob).txHash
             assertThat(getBalance(bobWalletTxHash)).isEqualTo(initialBalance)

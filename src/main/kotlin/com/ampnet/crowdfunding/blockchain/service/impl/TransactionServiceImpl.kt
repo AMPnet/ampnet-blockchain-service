@@ -29,25 +29,24 @@ class TransactionServiceImpl(
 ) : TransactionService {
 
     @Transactional
-    override fun postAndCacheTransaction(txData: String, txType: TransactionType, onComplete: (Transaction) -> Unit) {
+    override fun postAndCacheTransaction(txData: String, txType: TransactionType): Transaction {
         throwIfCallerNotMemberOfAmpnet(txData)
         throwIfTxTypeDoesNotMatchActualTx(txData, txType)
-        web3j.ethSendRawTransaction(txData).sendAsync().thenAccept { sendTx ->
-            val txHash = sendTx.transactionHash
-            val tx = persistTransaction(txData, txHash)
 
-            // Try to wait for mined event and update tx right away (if fails scheduled job will handle it anyway)
-            web3j.ethGetTransactionReceipt(sendTx.transactionHash).flowable().subscribe { receipt ->
-                if (receipt.result.isStatusOK) {
-                    tx.state = TransactionState.MINED
-                } else {
-                    tx.state = TransactionState.FAILED
-                }
-                transactionRepository.save(tx)
+        val txHash = web3j.ethSendRawTransaction(txData).send().transactionHash.toLowerCase()
+        val tx = persistTransaction(txData, txHash)
+
+        // Try to wait for mined event and update tx right away (if fails scheduled job will handle it anyway)
+        web3j.ethGetTransactionReceipt(txHash).flowable().subscribe { receipt ->
+            if (receipt.result.isStatusOK) {
+                tx.state = TransactionState.MINED
+            } else {
+                tx.state = TransactionState.FAILED
             }
-
-            onComplete(tx)
+            transactionRepository.save(tx)
         }
+
+        return tx
     }
 
     @Transactional
@@ -113,19 +112,19 @@ class TransactionServiceImpl(
 
     private fun persistTransaction(txData: String, txHash: String): Transaction {
         val signedTx = TransactionDecoder.decode(txData) as SignedRawTransaction
-        val toAddress = signedTx.to
+        val toAddress = signedTx.to.toLowerCase()
         val input = signedTx.data
-        val functionHash = input.substring(0, 8)
+        val functionHash = input.substring(0, 8).toLowerCase()
         val inputData = input.substring(8)
 
         // TODO: - refactor
-        if (toAddress == properties.contracts.ampnetAddress) {
+        if (toAddress == properties.contracts.ampnetAddress.toLowerCase()) {
             when (functionHash) {
                 TransactionType.WALLET_CREATE.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
                     tx.hash = txHash
-                    tx.fromAddress = signedTx.from
-                    tx.toAddress = signedTx.to
+                    tx.fromAddress = signedTx.from.toLowerCase()
+                    tx.toAddress = signedTx.to.toLowerCase()
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.WALLET_CREATE
@@ -146,7 +145,7 @@ class TransactionServiceImpl(
                             .asRuntimeException()
                 }
             }
-        } else if (toAddress == properties.contracts.eurAddress) {
+        } else if (toAddress == properties.contracts.eurAddress.toLowerCase()) {
             when (functionHash) {
                 TransactionType.DEPOSIT.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
@@ -164,8 +163,8 @@ class TransactionServiceImpl(
                     val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
 
                     tx.hash = txHash
-                    tx.fromAddress = signedTx.from
-                    tx.toAddress = address.value
+                    tx.fromAddress = signedTx.from.toLowerCase()
+                    tx.toAddress = address.value.toLowerCase()
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.DEPOSIT
@@ -191,8 +190,8 @@ class TransactionServiceImpl(
                     val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
 
                     tx.hash = txHash
-                    tx.fromAddress = address.value
-                    tx.toAddress = signedTx.from
+                    tx.fromAddress = address.value.toLowerCase()
+                    tx.toAddress = signedTx.from.toLowerCase()
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.WITHDRAW
@@ -218,8 +217,8 @@ class TransactionServiceImpl(
                     val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
 
                     tx.hash = txHash
-                    tx.fromAddress = signedTx.from
-                    tx.toAddress = address.value
+                    tx.fromAddress = signedTx.from.toLowerCase()
+                    tx.toAddress = address.value.toLowerCase()
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.PENDING_WITHDRAW
@@ -245,8 +244,8 @@ class TransactionServiceImpl(
                     val tx = Transaction::class.java.newInstance()
 
                     tx.hash = txHash
-                    tx.fromAddress = signedTx.from
-                    tx.toAddress = address.value
+                    tx.fromAddress = signedTx.from.toLowerCase()
+                    tx.toAddress = address.value.toLowerCase()
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.TRANSFER
@@ -278,11 +277,11 @@ class TransactionServiceImpl(
 
         // Extract caller's address from signed transaction
         val signedTx = TransactionDecoder.decode(txData) as SignedRawTransaction
-        val fromAddress = signedTx.from
+        val fromAddress = signedTx.from.toLowerCase()
 
         // Check if caller is either AMPnet or Issuing Authority
-        val issuingAuthority = properties.accounts.issuingAuthorityAddress
-        val ampnetAuthority = Credentials.create(properties.accounts.ampnetPrivateKey).address
+        val issuingAuthority = properties.accounts.issuingAuthorityAddress.toLowerCase()
+        val ampnetAuthority = Credentials.create(properties.accounts.ampnetPrivateKey).address.toLowerCase()
         if (fromAddress == issuingAuthority || fromAddress == ampnetAuthority) {
             return
         }
@@ -301,7 +300,7 @@ class TransactionServiceImpl(
 
     private fun throwIfTxTypeDoesNotMatchActualTx(txData: String, txType: TransactionType) {
         val tx = TransactionDecoder.decode(txData)
-        val functionSignature = tx.data.substring(0, 8)
+        val functionSignature = tx.data.substring(0, 8).toLowerCase()
         val actualType = TransactionType.fromFunctionHash(functionSignature)
         if (actualType != txType) {
             throw Status.PERMISSION_DENIED
@@ -321,29 +320,3 @@ class TransactionServiceImpl(
         return address.value
     }
 }
-
-/*
-    companion object {
-        fun fromFunctionHash(hash: String): TransactionType {
-            return when (hash) {
-                WALLET_CREATE.functionHash      -> { WALLET_CREATE }
-                ORG_CREATE.functionHash         -> { ORG_CREATE }
-                DEPOSIT.functionHash            -> { DEPOSIT }
-                PENDING_WITHDRAW.functionHash   -> { PENDING_WITHDRAW }
-                WITHDRAW.functionHash           -> { WITHDRAW }
-                INVEST.functionHash             -> { INVEST }
-                TRANSFER.functionHash           -> { TRANSFER}
-                ORG_ADD_MEMBER.functionHash     -> { ORG_ADD_MEMBER }
-                ORG_ADD_PROJECT.functionHash    -> { ORG_ADD_PROJECT }
-                ORG_ACTIVATE.functionHash       -> { ORG_ACTIVATE }
-                TRANSFER_OWNERSHIP.functionHash -> { TRANSFER_OWNERSHIP }
-                CANCEL_INVESTMENT.functionHash  -> { CANCEL_INVESTMENT }
-                else -> {
-                    throw Status.INVALID_ARGUMENT
-                            .withDescription("Invalid transaction function call! Function not recognized.")
-                            .asRuntimeException()
-                }
-            }
-        }
-    }
- */
