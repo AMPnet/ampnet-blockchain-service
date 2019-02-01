@@ -6,7 +6,7 @@ import org.web3j.crypto.Hash
 enum class TransactionType(val functionHash: String) {
 
     WALLET_CREATE(EthUtilities.getFunctionHash("addWallet(address)")),
-    ORG_CREATE(EthUtilities.getFunctionHash("addOrganization(string)")),
+    ORG_CREATE(EthUtilities.getFunctionHash("addOrganization()")),
     DEPOSIT(EthUtilities.getFunctionHash("mint(address,uint256)")),
     PENDING_WITHDRAW(EthUtilities.getFunctionHash("approve(address,uint256)")),
     WITHDRAW(EthUtilities.getFunctionHash("burnFrom(address,uint256)")),

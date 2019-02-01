@@ -9,23 +9,28 @@ import com.ampnet.crowdfunding.blockchain.persistence.model.Wallet
 import com.ampnet.crowdfunding.blockchain.persistence.repository.TransactionRepository
 import com.ampnet.crowdfunding.blockchain.persistence.repository.WalletRepository
 import com.ampnet.crowdfunding.blockchain.service.TransactionService
+import com.ampnet.crowdfunding.blockchain.service.WalletService
 import io.grpc.Status
 import org.springframework.stereotype.Service
 import org.web3j.abi.TypeDecoder
 import org.web3j.abi.datatypes.Address
+import org.web3j.abi.datatypes.Utf8String
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.SignedRawTransaction
 import org.web3j.crypto.TransactionDecoder
 import org.web3j.protocol.Web3j
+import java.math.BigInteger
+import java.time.ZonedDateTime
 import javax.transaction.Transactional
 
 @Service
 class TransactionServiceImpl(
-    val web3j: Web3j,
-    val transactionRepository: TransactionRepository,
-    val walletRepository: WalletRepository,
-    val properties: ApplicationProperties
+        val web3j: Web3j,
+        val transactionRepository: TransactionRepository,
+        val walletRepository: WalletRepository,
+        val walletService: WalletService,
+        val properties: ApplicationProperties
 ) : TransactionService {
 
     @Transactional
@@ -43,6 +48,7 @@ class TransactionServiceImpl(
             } else {
                 tx.state = TransactionState.FAILED
             }
+            tx.processedAt = ZonedDateTime.now()
             transactionRepository.save(tx)
         }
 
@@ -105,6 +111,7 @@ class TransactionServiceImpl(
                 } else {
                     tx.state = TransactionState.FAILED
                 }
+                tx.processedAt = ZonedDateTime.now()
                 transactionRepository.save(tx)
             }
         }
@@ -123,12 +130,13 @@ class TransactionServiceImpl(
                 TransactionType.WALLET_CREATE.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
                     tx.hash = txHash
-                    tx.fromAddress = signedTx.from.toLowerCase()
-                    tx.toAddress = signedTx.to.toLowerCase()
+                    tx.fromWallet = signedTx.from.toLowerCase()
+                    tx.toWallet = txHash
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.WALLET_CREATE
                     tx.amount = null
+                    tx.createdAt = ZonedDateTime.now()
                     transactionRepository.save(tx)
 
                     val wallet = Wallet::class.java.newInstance()
@@ -136,6 +144,42 @@ class TransactionServiceImpl(
                     wallet.address = null
                     wallet.type = WalletType.USER
                     walletRepository.save(wallet)
+
+                    return tx
+                }
+                TransactionType.ORG_CREATE.functionHash -> {
+                    val tx = Transaction::class.java.newInstance()
+                    tx.hash = txHash
+                    tx.fromWallet = walletService.getTxHash(signedTx.from.toLowerCase())
+                    tx.toWallet = signedTx.to.toLowerCase()
+                    tx.input = signedTx.data
+                    tx.state = TransactionState.PENDING
+                    tx.type = TransactionType.ORG_CREATE
+                    tx.amount = null
+                    tx.createdAt = ZonedDateTime.now()
+                    transactionRepository.save(tx)
+
+                    val wallet = Wallet::class.java.newInstance()
+                    wallet.hash = txHash
+                    wallet.address = null
+                    wallet.type = WalletType.ORG
+                    walletRepository.save(wallet)
+
+                    return tx
+                }
+                TransactionType.ORG_ACTIVATE.functionHash -> {
+                    val tx = Transaction::class.java.newInstance()
+                    val orgAddress = decodeAddress(inputData)
+
+                    tx.hash = txHash
+                    tx.fromWallet = signedTx.from.toLowerCase()
+                    tx.toWallet = walletService.getTxHash(orgAddress).toLowerCase()
+                    tx.input = signedTx.data
+                    tx.state = TransactionState.PENDING
+                    tx.type = TransactionType.ORG_ACTIVATE
+                    tx.amount = null
+                    tx.createdAt = ZonedDateTime.now()
+                    transactionRepository.save(tx)
 
                     return tx
                 }
@@ -149,26 +193,16 @@ class TransactionServiceImpl(
             when (functionHash) {
                 TransactionType.DEPOSIT.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
-
-                    val refMethod = TypeDecoder::class.java.getDeclaredMethod(
-                            "decode",
-                            String::class.java,
-                            Int::class.java,
-                            Class::class.java
-                    )
-                    refMethod.isAccessible = true
-                    val addressInput = inputData.substring(0, 64)
-                    val amountInput = inputData.substring(64)
-                    val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
-                    val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
+                    val (address, amount) = decodeAddressAndAmount(inputData)
 
                     tx.hash = txHash
-                    tx.fromAddress = signedTx.from.toLowerCase()
-                    tx.toAddress = address.value.toLowerCase()
+                    tx.fromWallet = signedTx.from.toLowerCase()
+                    tx.toWallet = walletService.getTxHash(address.toLowerCase())
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.DEPOSIT
-                    tx.amount = amount.value
+                    tx.amount = amount
+                    tx.createdAt = ZonedDateTime.now()
 
                     transactionRepository.save(tx)
 
@@ -176,26 +210,16 @@ class TransactionServiceImpl(
                 }
                 TransactionType.WITHDRAW.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
-
-                    val refMethod = TypeDecoder::class.java.getDeclaredMethod(
-                            "decode",
-                            String::class.java,
-                            Int::class.java,
-                            Class::class.java
-                    )
-                    refMethod.isAccessible = true
-                    val addressInput = inputData.substring(0, 64)
-                    val amountInput = inputData.substring(64)
-                    val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
-                    val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
+                    val (address, amount) = decodeAddressAndAmount(inputData)
 
                     tx.hash = txHash
-                    tx.fromAddress = address.value.toLowerCase()
-                    tx.toAddress = signedTx.from.toLowerCase()
+                    tx.fromWallet = walletService.getTxHash(address.toLowerCase())
+                    tx.toWallet = signedTx.from.toLowerCase()
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.WITHDRAW
-                    tx.amount = amount.value
+                    tx.amount = amount
+                    tx.createdAt = ZonedDateTime.now()
 
                     transactionRepository.save(tx)
 
@@ -203,53 +227,33 @@ class TransactionServiceImpl(
                 }
                 TransactionType.PENDING_WITHDRAW.functionHash -> {
                     val tx = Transaction::class.java.newInstance()
-
-                    val refMethod = TypeDecoder::class.java.getDeclaredMethod(
-                            "decode",
-                            String::class.java,
-                            Int::class.java,
-                            Class::class.java
-                    )
-                    refMethod.isAccessible = true
-                    val addressInput = inputData.substring(0, 64)
-                    val amountInput = inputData.substring(64)
-                    val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
-                    val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
+                    val (address, amount) = decodeAddressAndAmount(inputData)
 
                     tx.hash = txHash
-                    tx.fromAddress = signedTx.from.toLowerCase()
-                    tx.toAddress = address.value.toLowerCase()
+                    tx.fromWallet = walletService.getTxHash(signedTx.from.toLowerCase())
+                    tx.toWallet = address.toLowerCase()
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.PENDING_WITHDRAW
-                    tx.amount = amount.value
+                    tx.amount = amount
+                    tx.createdAt = ZonedDateTime.now()
 
                     transactionRepository.save(tx)
 
                     return tx
                 }
                 TransactionType.TRANSFER.functionHash -> {
-                    val refMethod = TypeDecoder::class.java.getDeclaredMethod(
-                            "decode",
-                            String::class.java,
-                            Int::class.java,
-                            Class::class.java
-                    )
-                    refMethod.isAccessible = true
-                    val addressInput = inputData.substring(0, 64)
-                    val amountInput = inputData.substring(64)
-                    val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
-                    val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
-
                     val tx = Transaction::class.java.newInstance()
+                    val (address, amount) = decodeAddressAndAmount(inputData)
 
                     tx.hash = txHash
-                    tx.fromAddress = signedTx.from.toLowerCase()
-                    tx.toAddress = address.value.toLowerCase()
+                    tx.fromWallet = walletService.getTxHash(signedTx.from.toLowerCase())
+                    tx.toWallet = walletService.getTxHash(address.toLowerCase())
                     tx.input = signedTx.data
                     tx.state = TransactionState.PENDING
                     tx.type = TransactionType.TRANSFER
-                    tx.amount = amount.value
+                    tx.amount = amount
+                    tx.createdAt = ZonedDateTime.now()
 
                     transactionRepository.save(tx)
 
@@ -318,5 +322,23 @@ class TransactionServiceImpl(
         refMethod.isAccessible = true
         val address = refMethod.invoke(null, input, Address::class.java) as Address
         return address.value
+    }
+
+    private fun decodeAddressAndAmount(input: String): Pair<String, BigInteger> {
+        val refMethod = TypeDecoder::class.java.getDeclaredMethod(
+                "decode",
+                String::class.java,
+                Int::class.java,
+                Class::class.java
+        )
+        refMethod.isAccessible = true
+
+        val addressInput = input.substring(0, 64)
+        val amountInput = input.substring(64)
+
+        val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
+        val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
+
+        return Pair(address.value, amount.value)
     }
 }

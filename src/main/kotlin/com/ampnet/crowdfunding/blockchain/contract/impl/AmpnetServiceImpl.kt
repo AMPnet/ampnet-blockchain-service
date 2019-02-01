@@ -43,10 +43,10 @@ class AmpnetServiceImpl(
         )
     }
 
-    override fun generateAddOrganizationTx(from: String, name: String): RawTransaction {
+    override fun generateAddOrganizationTx(from: String): RawTransaction {
         val function = Function(
                 "addOrganization",
-                listOf(Utf8String(name)),
+                emptyList(),
                 emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)

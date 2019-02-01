@@ -54,7 +54,7 @@ class BlockchainServiceTest : TestBase() {
             assertTransaction(
                     tx,
                     expectedFrom = accounts.ampnetOwner.address,
-                    expectedTo = applicationProperties.contracts.ampnetAddress,
+                    expectedTo = txResponse.txHash,
                     expectedType = TransactionType.WALLET_CREATE
             )
         }
@@ -84,12 +84,12 @@ class BlockchainServiceTest : TestBase() {
             assertThat(getBalance(bobWalletTxHash)).isEqualTo(initialBalance)
         }
         verify("Bob can deposit some amount of EUR") {
-            mint(accounts.bob.address, depositAmount)
+            mint(bobWalletTxHash, depositAmount)
             assertThat(getBalance(bobWalletTxHash)).isEqualTo(depositAmount)
         }
         verify("Bob can withdraw some amount of EUR") {
             approveTokenIssuer(bobWalletTxHash, accounts.bob, withdrawAmount)
-            burn(accounts.bob.address, withdrawAmount)
+            burn(bobWalletTxHash, withdrawAmount)
             assertThat(getBalance(bobWalletTxHash)).isEqualTo(finalBalance)
         }
         verify("All transactions are stored in database") {
@@ -102,7 +102,7 @@ class BlockchainServiceTest : TestBase() {
             assertTransaction(
                     mintTx,
                     expectedFrom = accounts.eurOwner.address,
-                    expectedTo = accounts.bob.address,
+                    expectedTo = bobWalletTxHash,
                     expectedType = TransactionType.DEPOSIT,
                     expectedAmount = depositAmount
             )
@@ -110,7 +110,7 @@ class BlockchainServiceTest : TestBase() {
             val approveTx = transactions[2]
             assertTransaction(
                     approveTx,
-                    expectedFrom = accounts.bob.address,
+                    expectedFrom = bobWalletTxHash,
                     expectedTo = accounts.eurOwner.address,
                     expectedType = TransactionType.PENDING_WITHDRAW,
                     expectedAmount = withdrawAmount
@@ -119,7 +119,7 @@ class BlockchainServiceTest : TestBase() {
             val burnTx = transactions[3]
             assertTransaction(
                     burnTx,
-                    expectedFrom = accounts.bob.address,
+                    expectedFrom = bobWalletTxHash,
                     expectedTo = accounts.eurOwner.address,
                     expectedType = TransactionType.WITHDRAW,
                     expectedAmount = withdrawAmount
@@ -140,9 +140,9 @@ class BlockchainServiceTest : TestBase() {
 
         suppose("Users Bob and Alice are registered on AMPnet with their initial balances") {
             bobTxHash = addWallet(accounts.bob).txHash
-            mint(accounts.bob.address, bobInitialBalance)
+            mint(bobTxHash, bobInitialBalance)
             aliceTxHash = addWallet(accounts.alice).txHash
-            mint(accounts.alice.address, aliceInitialBalance)
+            mint(aliceTxHash, aliceInitialBalance)
         }
         verify("Bob can transfer funds to Alice's wallet") {
             transfer(bobTxHash, accounts.bob, aliceTxHash, bobToAliceAmount)
@@ -159,7 +159,7 @@ class BlockchainServiceTest : TestBase() {
             assertTransaction(
                     bobMintTx,
                     expectedFrom = accounts.eurOwner.address,
-                    expectedTo = accounts.bob.address,
+                    expectedTo = bobTxHash,
                     expectedType = TransactionType.DEPOSIT,
                     expectedAmount = bobInitialBalance
             )
@@ -168,7 +168,7 @@ class BlockchainServiceTest : TestBase() {
             assertTransaction(
                     aliceMintTx,
                     expectedFrom = accounts.eurOwner.address,
-                    expectedTo = accounts.alice.address,
+                    expectedTo = aliceTxHash,
                     expectedType = TransactionType.DEPOSIT,
                     expectedAmount = aliceInitialBalance
             )
@@ -176,8 +176,8 @@ class BlockchainServiceTest : TestBase() {
             val transferTx = transactions[4]
             assertTransaction(
                     transferTx,
-                    expectedFrom = accounts.bob.address,
-                    expectedTo = accounts.alice.address,
+                    expectedFrom = bobTxHash,
+                    expectedTo = aliceTxHash,
                     expectedType = TransactionType.TRANSFER,
                     expectedAmount = bobToAliceAmount
             )
@@ -192,14 +192,14 @@ class BlockchainServiceTest : TestBase() {
             bobTxHash = addWallet(accounts.bob).txHash
         }
         verify("Bob can create organization") {
-            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob, "Greenpeace")
-            assertThat(getAllOrganizations(accounts.bob.address)).hasSize(1)
+            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
+            assertThat(getAllOrganizations()).hasSize(1)
             assertThat(organizationExists(orgTxHash))
             assertThat(organizationActive(orgTxHash))
         }
 
     }
-//
+
 //    @Test
 //    fun mustBeAbleToAddUserToOrganization() {
 //        lateinit var organization: String
@@ -379,12 +379,12 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-    private fun mint(to: String, amount: Long) {
+    private fun mint(toTxHash: String, amount: Long) {
         val tx = grpc.generateMintTx(
                 GenerateMintTxRequest.newBuilder()
                         .setAmount(amount)
                         .setFrom(accounts.eurOwner.address)
-                        .setTo(to)
+                        .setToTxHash(toTxHash)
                         .build()
         )
         grpc.postTransaction(
@@ -411,11 +411,11 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-    private fun burn(from: String, amount: Long) {
+    private fun burn(fromTxHash: String, amount: Long) {
         val burnTx = grpc.generateBurnFromTx(
                 GenerateBurnFromTxRequest.newBuilder()
                         .setAmount(amount)
-                        .setBurnFrom(from)
+                        .setBurnFromTxHash(fromTxHash)
                         .setFrom(accounts.eurOwner.address)
                         .build()
         )
@@ -443,16 +443,16 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-    private fun addAndApproveOrganization(adminTxHash: String, admin: Credentials, name: String): String {
+    private fun addAndApproveOrganization(adminTxHash: String, admin: Credentials): String {
         val addOrgTx = grpc.generateAddOrganizationTx(
                 GenerateAddOrganizationTxRequest.newBuilder()
                         .setFromTxHash(adminTxHash)
-                        .setName(name)
                         .build()
         )
         val orgCreateTxHash = grpc.postTransaction(
                 PostTxRequest.newBuilder()
                         .setData(sign(addOrgTx, admin))
+                        .setTxType(typeToProto(TransactionType.ORG_CREATE))
                         .build()
         ).txHash
         grpc.activateOrganization(
@@ -495,7 +495,7 @@ class BlockchainServiceTest : TestBase() {
         ).balance
     }
 
-    private fun getAllOrganizations(from: String): List<String> {
+    private fun getAllOrganizations(): List<String> {
         return grpc.getAllOrganizations(
                 Empty.getDefaultInstance()
         ).organizationsList
@@ -713,8 +713,8 @@ class BlockchainServiceTest : TestBase() {
         expectedType: TransactionType,
         expectedAmount: Long? = null
     ) {
-        assertThat(tx.fromAddress).isEqualTo(expectedFrom)
-        assertThat(tx.toAddress).isEqualTo(expectedTo)
+        assertThat(tx.fromWallet).isEqualTo(expectedFrom)
+        assertThat(tx.toWallet).isEqualTo(expectedTo)
         assertThat(tx.type).isEqualTo(expectedType)
         assertThat(tx.state).isEqualTo(TransactionState.MINED)
         assertThat(tx.amount).isEqualTo(eurToToken(expectedAmount))

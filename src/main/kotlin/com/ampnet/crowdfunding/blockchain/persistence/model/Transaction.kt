@@ -3,6 +3,7 @@ package com.ampnet.crowdfunding.blockchain.persistence.model
 import com.ampnet.crowdfunding.blockchain.enums.TransactionState
 import com.ampnet.crowdfunding.blockchain.enums.TransactionType
 import java.math.BigInteger
+import java.time.ZonedDateTime
 import javax.persistence.Entity
 import javax.persistence.GeneratedValue
 import javax.persistence.Id
@@ -23,10 +24,10 @@ data class Transaction(
     var hash: String,
 
     @Column(nullable = false)
-    var fromAddress: String,
+    var fromWallet: String,
 
     @Column(nullable = false)
-    var toAddress: String,
+    var toWallet: String,
 
     @Column(nullable = false)
     var input: String,
@@ -40,5 +41,11 @@ data class Transaction(
     var type: TransactionType,
 
     @Column
-    var amount: BigInteger?
+    var amount: BigInteger?,
+
+    @Column(nullable = false)
+    var createdAt: ZonedDateTime,
+
+    @Column
+    var processedAt: ZonedDateTime
 )
