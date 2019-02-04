@@ -14,8 +14,6 @@ interface OrganizationService {
     fun generateAddProjectTx(
         from: String,
         organization: String,
-        name: String,
-        description: String,
         maxInvestmentPerUser: BigInteger,
         minInvestmentPerUser: BigInteger,
         investmentCap: BigInteger

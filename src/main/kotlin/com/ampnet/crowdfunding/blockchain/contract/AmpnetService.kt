@@ -6,7 +6,7 @@ interface AmpnetService {
 
     fun generateAddWalletTx(from: String, wallet: String): RawTransaction
 
-    fun generateAddOrganizationTx(from: String, name: String): RawTransaction
+    fun generateAddOrganizationTx(from: String): RawTransaction
 
     fun getAllOrganizations(): List<String>
 

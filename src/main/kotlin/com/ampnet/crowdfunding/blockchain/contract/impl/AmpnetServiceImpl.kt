@@ -7,7 +7,6 @@ import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
 import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Address
-import org.web3j.abi.datatypes.Utf8String
 import org.web3j.abi.datatypes.DynamicArray
 import org.web3j.abi.datatypes.Bool
 import org.web3j.abi.datatypes.Function
@@ -43,10 +42,10 @@ class AmpnetServiceImpl(
         )
     }
 
-    override fun generateAddOrganizationTx(from: String, name: String): RawTransaction {
+    override fun generateAddOrganizationTx(from: String): RawTransaction {
         val function = Function(
                 "addOrganization",
-                listOf(Utf8String(name)),
+                emptyList(),
                 emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)

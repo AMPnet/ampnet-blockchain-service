@@ -21,10 +21,6 @@ interface ProjectService {
 
     fun generateCancelInvestmentTx(from: String, project: String, amount: BigInteger): RawTransaction
 
-    fun getName(project: String): String
-
-    fun getDescription(project: String): String
-
     fun getMaxInvestmentPerUser(project: String): BigInteger
 
     fun getMinInvestmentPerUser(project: String): BigInteger

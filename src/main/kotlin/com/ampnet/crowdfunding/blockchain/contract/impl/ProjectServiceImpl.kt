@@ -8,7 +8,6 @@ import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Address
 import org.web3j.abi.datatypes.Bool
 import org.web3j.abi.datatypes.Function
-import org.web3j.abi.datatypes.Utf8String
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.RawTransaction
 import org.web3j.protocol.Web3j
@@ -88,50 +87,6 @@ class ProjectServiceImpl(val web3j: Web3j) : ProjectService {
                 project,
                 encodedFunction
         )
-    }
-
-    override fun getName(project: String): String {
-        val function = Function(
-                "getName",
-                emptyList(),
-                listOf(TypeReference.create(Utf8String::class.java))
-        )
-        val encodedFunction = FunctionEncoder.encode(function)
-
-        val response = web3j.ethCall(
-                Transaction.createEthCallTransaction(
-                        project,
-                        project,
-                        encodedFunction
-                ),
-                DefaultBlockParameterName.LATEST
-        ).send()
-
-        val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
-
-        return returnValues[0].value as String
-    }
-
-    override fun getDescription(project: String): String {
-        val function = Function(
-                "getDescription",
-                emptyList(),
-                listOf(TypeReference.create(Utf8String::class.java))
-        )
-        val encodedFunction = FunctionEncoder.encode(function)
-
-        val response = web3j.ethCall(
-                Transaction.createEthCallTransaction(
-                        project,
-                        project,
-                        encodedFunction
-                ),
-                DefaultBlockParameterName.LATEST
-        ).send()
-
-        val returnValues = FunctionReturnDecoder.decode(response.value, function.outputParameters)
-
-        return returnValues[0].value as String
     }
 
     override fun getMaxInvestmentPerUser(project: String): BigInteger {
