@@ -11,15 +11,23 @@ import com.ampnet.crowdfunding.proto.ActivateOrganizationRequest
 import com.ampnet.crowdfunding.proto.AddWalletRequest
 import com.ampnet.crowdfunding.proto.BalanceRequest
 import com.ampnet.crowdfunding.proto.Empty
+import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
+import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
 import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
+import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
+import com.ampnet.crowdfunding.proto.OrganizationMembersRequest
+import com.ampnet.crowdfunding.proto.OrganizationProjectsRequest
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.PostTxRequest
 import com.ampnet.crowdfunding.proto.PostTxResponse
+import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
+import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
+import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import com.ampnet.crowdfunding.proto.WalletActiveRequest
 import org.assertj.core.api.Assertions.assertThat
@@ -197,65 +205,135 @@ class BlockchainServiceTest : TestBase() {
             assertThat(organizationExists(orgTxHash))
             assertThat(organizationActive(orgTxHash))
         }
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(3)
 
+            val orgCreateTx = transactions[1]
+            assertTransaction(
+                    orgCreateTx,
+                    expectedFrom = bobTxHash,
+                    expectedTo = orgTxHash,
+                    expectedType = TransactionType.ORG_CREATE
+            )
+
+            val orgActivateTx = transactions[2]
+            assertTransaction(
+                    orgActivateTx,
+                    expectedFrom = accounts.ampnetOwner.address,
+                    expectedTo = orgTxHash,
+                    expectedType = TransactionType.ORG_ACTIVATE
+            )
+        }
     }
 
-//    @Test
-//    fun mustBeAbleToAddUserToOrganization() {
-//        lateinit var organization: String
-//        suppose("Users Bob,Alice exist and Bob created Greenpeace organization") {
-//            addWallet(accounts.bob.address)
-//            addWallet(accounts.alice.address)
-//            organization = addAndApproveOrganization(accounts.bob, "Greenpeace")
-//        }
-//        verify("Bob can add new user to organization") {
-//            addOrganizationMember(organization, accounts.bob, accounts.alice.address)
-//
-//            val members = getAllMembers(organization)
-//            assertThat(members).hasSize(1)
-//            assertThat(members.first()).isEqualTo(accounts.alice.address)
-//        }
-//    }
-//
-//    @Test
-//    fun mustBeAbleToAddProjectToOrganization() {
-//        lateinit var organization: String
-//        suppose("User Bob exists and is admin of Greenpeace organization") {
-//            addWallet(accounts.bob.address)
-//            organization = addAndApproveOrganization(accounts.bob, "Greenpeace")
-//        }
-//        verify("Bob can create new investment project") {
-//            createTestProject(organization, accounts.bob, testProject)
-//
-//            val projects = getAllProjects(organization)
-//            assertThat(projects).hasSize(1)
-//
-//            val projectAddress = projects.first()
-//            val fetchedProject = getProject(projectAddress)
-//            assertThat(fetchedProject).isEqualTo(testProject)
-//        }
-//    }
-//
-//    @Test
-//    fun mustBeAbleToWithdrawMoneyFromOrganization() {
-//        lateinit var organization: String
-//
-//        val initialOrgBalance = 1000L
-//        val withdrawAmount = 1000L
-//        val finalOrgBalance = initialOrgBalance - withdrawAmount
-//
-//        suppose("User Bob exists and is admin of Greenpeace organization which has some positive balance") {
-//            addWallet(accounts.bob.address)
-//            organization = addAndApproveOrganization(accounts.bob, "Greenpeace")
-//            mint(organization, initialOrgBalance)
-//        }
-//        verify("Bob can withdraw money from organization") {
-//            withdrawFromOrganization(organization, accounts.bob, withdrawAmount)
-//            burn(organization, withdrawAmount)
-//            assertThat(getBalance(organization)).isEqualTo(finalOrgBalance)
-//        }
-//    }
-//
+    @Test
+    fun mustBeAbleToAddUserToOrganization() {
+        lateinit var orgTxHash: String
+        lateinit var bobTxHash: String
+        lateinit var aliceTxHash: String
+        suppose("Users Bob,Alice exist and Bob created Greenpeace organization") {
+            bobTxHash = addWallet(accounts.bob).txHash
+            aliceTxHash = addWallet(accounts.alice).txHash
+            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
+        }
+        verify("Bob can add new user to organization") {
+            addOrganizationMember(orgTxHash, bobTxHash, accounts.bob, aliceTxHash)
+
+            val members = getAllMembers(orgTxHash)
+            assertThat(members).hasSize(1)
+            assertThat(members.first()).isEqualTo(accounts.alice.address)
+        }
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(5)
+
+            val addMemberTx = transactions[4]
+            assertTransaction(
+                    addMemberTx,
+                    expectedFrom = bobTxHash,
+                    expectedTo = orgTxHash,
+                    expectedType = TransactionType.ORG_ADD_MEMBER
+            )
+        }
+    }
+
+    @Test
+    fun mustBeAbleToAddProjectToOrganization() {
+        lateinit var bobTxHash: String
+        lateinit var orgTxHash: String
+        lateinit var projectTxHash: String
+
+        suppose("User Bob exists and is admin of Greenpeace organization") {
+            bobTxHash = addWallet(accounts.bob).txHash
+            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
+        }
+        verify("Bob can create new investment project") {
+            projectTxHash = createTestProject(orgTxHash, bobTxHash, accounts.bob, testProject)
+
+            val projects = getAllProjects(orgTxHash)
+            assertThat(projects).hasSize(1)
+
+            val fetchedProject = getProject(projectTxHash)
+            assertThat(fetchedProject).isEqualTo(testProject)
+        }
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(4)
+
+            val addProjectTx = transactions[3]
+            assertTransaction(
+                    addProjectTx,
+                    expectedFrom = bobTxHash,
+                    expectedTo = projectTxHash,
+                    expectedType = TransactionType.ORG_ADD_PROJECT
+            )
+        }
+    }
+
+    @Test
+    fun mustBeAbleToWithdrawMoneyFromOrganization() {
+        lateinit var orgTxHash: String
+        lateinit var bobTxHash: String
+
+        val initialOrgBalance = 1000L
+        val withdrawAmount = 1000L
+        val finalOrgBalance = initialOrgBalance - withdrawAmount
+
+        suppose("User Bob exists and is admin of Greenpeace organization which has some positive balance") {
+            bobTxHash = addWallet(accounts.bob).txHash
+            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
+            mint(orgTxHash, initialOrgBalance)
+        }
+        verify("Bob can withdraw money from organization") {
+            withdrawFromOrganization(orgTxHash, bobTxHash, accounts.bob, withdrawAmount)
+            burn(orgTxHash, withdrawAmount)
+            assertThat(getBalance(orgTxHash)).isEqualTo(finalOrgBalance)
+        }
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(6)
+
+            val pendingWithdrawTx = transactions[4]
+            assertTransaction(
+                    pendingWithdrawTx,
+                    expectedFrom = orgTxHash,
+                    expectedTo = accounts.eurOwner.address,
+                    expectedType = TransactionType.PENDING_ORG_WITHDRAW,
+                    expectedAmount = withdrawAmount
+            )
+
+            val withdrawTx = transactions[5]
+            assertTransaction(
+                    withdrawTx,
+                    expectedFrom = orgTxHash,
+                    expectedTo = accounts.eurOwner.address,
+                    expectedType = TransactionType.WITHDRAW,
+                    expectedAmount = withdrawAmount
+            )
+        }
+    }
+
 //    @Test
 //    fun mustBeAbleForUsersToInvestInProjectAndReachCap() {
 //        lateinit var organization: String
@@ -500,109 +578,97 @@ class BlockchainServiceTest : TestBase() {
                 Empty.getDefaultInstance()
         ).organizationsList
     }
-//
-//    private fun addOrganizationMember(organization: String, admin: Credentials, member: String) {
-//        val addMemberTx = grpc.generateAddOrganizationMemberTx(
-//                GenerateAddMemberTxRequest.newBuilder()
-//                        .setFrom(admin.address)
-//                        .setOrganization(organization)
-//                        .setMember(member)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(addMemberTx, admin))
-//                        .build()
-//        )
-//    }
-//
-//    private fun getAllMembers(organization: String): List<String> {
-//        return grpc.getAllOrganizationMembers(
-//                OrganizationMembersRequest.newBuilder()
-//                        .setOrganization(organization)
-//                        .build()
-//        ).membersList
-//    }
-//
-//    private fun getAllProjects(organization: String): List<String> {
-//        return grpc.getAllOrganizationProjects(
-//                OrganizationProjectsRequest.newBuilder()
-//                        .setOrganization(organization)
-//                        .build()
-//        ).projectsList
-//    }
-//
-//    private fun getProject(address: String): TestProject {
-//        val name = grpc.getProjectName(
-//                ProjectNameRequest.newBuilder()
-//                        .setProject(address)
-//                        .build()
-//        ).name
-//        val description = grpc.getProjectDescription(
-//                ProjectDescriptionRequest.newBuilder()
-//                        .setProject(address)
-//                        .build()
-//        ).description
-//        val minUserInvestment = grpc.getProjectMinInvestmentPerUser(
-//                ProjectMinInvestmentPerUserRequest.newBuilder()
-//                        .setProject(address)
-//                        .build()
-//        ).amount
-//        val maxUserInvestment = grpc.getProjectMaxInvestmentPerUser(
-//                ProjectMaxInvestmentPerUserRequest.newBuilder()
-//                        .setProject(address)
-//                        .build()
-//        ).amount
-//        val investmentCap = grpc.getProjectInvestmentCap(
-//                ProjectInvestmentCapRequest.newBuilder()
-//                        .setProject(address)
-//                        .build()
-//        ).amount
-//        return TestProject(
-//                name,
-//                description,
-//                minUserInvestment,
-//                maxUserInvestment,
-//                investmentCap
-//        )
-//    }
-//
-//    private fun createTestProject(organization: String, admin: Credentials, project: TestProject): String {
-//        val createProjectTx = grpc.generateAddOrganizationProjectTx(
-//                GenerateAddProjectTxRequest.newBuilder()
-//                        .setFrom(admin.address)
-//                        .setOrganization(organization)
-//                        .setName(project.name)
-//                        .setDescription(project.description)
-//                        .setMinInvestmentPerUser(project.minUserInvestment)
-//                        .setMaxInvestmentPerUser(project.maxUserInvesment)
-//                        .setInvestmentCap(project.invesmentCap)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(createProjectTx, admin))
-//                        .build()
-//        )
-//        return getAllProjects(organization).first()
-//    }
-//
-//    private fun withdrawFromOrganization(organization: String, admin: Credentials, amount: Long) {
-//        val withdrawTx = grpc.generateWithdrawOrganizationFundsTx(
-//                GenerateWithdrawOrganizationFundsTxRequest.newBuilder()
-//                        .setFrom(admin.address)
-//                        .setOrganization(organization)
-//                        .setAmount(amount)
-//                        .setTokenIssuer(accounts.eurOwner.address)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(withdrawTx, admin))
-//                        .build()
-//        )
-//    }
-//
+
+    private fun addOrganizationMember(orgTxHash: String, adminTxHash: String, admin: Credentials, memberTxHash: String) {
+        val addMemberTx = grpc.generateAddOrganizationMemberTx(
+                GenerateAddMemberTxRequest.newBuilder()
+                        .setFromTxHash(adminTxHash)
+                        .setOrganizationTxHash(orgTxHash)
+                        .setMemberTxHash(memberTxHash)
+                        .build()
+        )
+        grpc.postTransaction(
+                PostTxRequest.newBuilder()
+                        .setData(sign(addMemberTx, admin))
+                        .setTxType(typeToProto(TransactionType.ORG_ADD_MEMBER))
+                        .build()
+        )
+    }
+
+    private fun getAllMembers(orgTxHash: String): List<String> {
+        return grpc.getAllOrganizationMembers(
+                OrganizationMembersRequest.newBuilder()
+                        .setOrganizationTxHash(orgTxHash)
+                        .build()
+        ).membersList
+    }
+
+    private fun getAllProjects(orgTxHash: String): List<String> {
+        return grpc.getAllOrganizationProjects(
+                OrganizationProjectsRequest.newBuilder()
+                        .setOrganizationTxHash(orgTxHash)
+                        .build()
+        ).projectsList
+    }
+
+    private fun getProject(projectTxHash: String): TestProject {
+        val minUserInvestment = grpc.getProjectMinInvestmentPerUser(
+                ProjectMinInvestmentPerUserRequest.newBuilder()
+                        .setProjectTxHash(projectTxHash)
+                        .build()
+        ).amount
+        val maxUserInvestment = grpc.getProjectMaxInvestmentPerUser(
+                ProjectMaxInvestmentPerUserRequest.newBuilder()
+                        .setProjectTxHash(projectTxHash)
+                        .build()
+        ).amount
+        val investmentCap = grpc.getProjectInvestmentCap(
+                ProjectInvestmentCapRequest.newBuilder()
+                        .setProjectTxHash(projectTxHash)
+                        .build()
+        ).amount
+        return TestProject(
+                minUserInvestment,
+                maxUserInvestment,
+                investmentCap
+        )
+    }
+
+    private fun createTestProject(orgTxHash: String, adminTxHash: String, admin: Credentials, project: TestProject): String {
+        val createProjectTx = grpc.generateAddOrganizationProjectTx(
+                GenerateAddProjectTxRequest.newBuilder()
+                        .setFromTxHash(adminTxHash)
+                        .setOrganizationTxHash(orgTxHash)
+                        .setMinInvestmentPerUser(project.minUserInvestment)
+                        .setMaxInvestmentPerUser(project.maxUserInvesment)
+                        .setInvestmentCap(project.invesmentCap)
+                        .build()
+        )
+        return grpc.postTransaction(
+                PostTxRequest.newBuilder()
+                        .setData(sign(createProjectTx, admin))
+                        .setTxType(typeToProto(TransactionType.ORG_ADD_PROJECT))
+                        .build()
+        ).txHash
+    }
+
+    private fun withdrawFromOrganization(orgTxHash: String, adminTxHash: String, admin: Credentials, amount: Long) {
+        val withdrawTx = grpc.generateWithdrawOrganizationFundsTx(
+                GenerateWithdrawOrganizationFundsTxRequest.newBuilder()
+                        .setFromTxHash(adminTxHash)
+                        .setOrganizationTxHash(orgTxHash)
+                        .setAmount(amount)
+                        .setTokenIssuer(accounts.eurOwner.address)
+                        .build()
+        )
+        grpc.postTransaction(
+                PostTxRequest.newBuilder()
+                        .setData(sign(withdrawTx, admin))
+                        .setTxType(typeToProto(TransactionType.PENDING_ORG_WITHDRAW))
+                        .build()
+        )
+    }
+
 //    private fun invest(project: String, user: Credentials, amount: Long) {
 //        val investTx = grpc.generateInvestTx(
 //                GenerateInvestTxRequest.newBuilder()

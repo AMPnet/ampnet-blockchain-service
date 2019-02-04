@@ -4,6 +4,7 @@ import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
 import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
 import com.ampnet.crowdfunding.blockchain.contract.EurService
 import com.ampnet.crowdfunding.blockchain.contract.OrganizationService
+import com.ampnet.crowdfunding.blockchain.contract.ProjectService
 import com.ampnet.crowdfunding.blockchain.enums.TransactionType
 import com.ampnet.crowdfunding.proto.ActivateOrganizationRequest
 import com.ampnet.crowdfunding.proto.BlockchainServiceGrpc
@@ -19,12 +20,25 @@ import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.proto.BalanceRequest
 import com.ampnet.crowdfunding.proto.BalanceResponse
 import com.ampnet.crowdfunding.proto.Empty
+import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
+import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
+import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.GetAllOrganizationsResponse
 import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
 import com.ampnet.crowdfunding.proto.OrganizationExistsResponse
+import com.ampnet.crowdfunding.proto.OrganizationMembersRequest
+import com.ampnet.crowdfunding.proto.OrganizationMembersResponse
+import com.ampnet.crowdfunding.proto.OrganizationProjectsRequest
+import com.ampnet.crowdfunding.proto.OrganizationProjectsResponse
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedResponse
+import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
+import com.ampnet.crowdfunding.proto.ProjectInvestmentCapResponse
+import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
+import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserResponse
+import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
+import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserResponse
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import io.grpc.stub.StreamObserver
 import org.lognet.springboot.grpc.GRpcService
@@ -42,6 +56,7 @@ class BlockchainService(
     val ampnetService: AmpnetService,
     val eurService: EurService,
     val organizationService: OrganizationService,
+    val projectService: ProjectService,
     val properties: ApplicationProperties
 ) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
@@ -103,7 +118,6 @@ class BlockchainService(
             responseObserver.onError(e)
         }
     }
-
 
     override fun organizationExists(request: OrganizationExistsRequest, responseObserver: StreamObserver<OrganizationExistsResponse>) {
         try {
@@ -219,75 +233,98 @@ class BlockchainService(
         }
     }
 
-    //    override fun generateWithdrawOrganizationFundsTx(request: GenerateWithdrawOrganizationFundsTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = organizationService.generateWithdrawFundsTx(
-//                request.from,
-//                request.organization,
-//                request.tokenIssuer,
-//                eurToToken(request.amount)
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun generateAddOrganizationMemberTx(request: GenerateAddMemberTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = organizationService.generateAddMemberTx(
-//                request.from,
-//                request.organization,
-//                request.member
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun generateAddOrganizationProjectTx(request: GenerateAddProjectTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = organizationService.generateAddProjectTx(
-//                request.from,
-//                request.organization,
-//                request.name,
-//                request.description,
-//                eurToToken(request.maxInvestmentPerUser),
-//                eurToToken(request.minInvestmentPerUser),
-//                eurToToken(request.investmentCap)
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
-    override fun isOrganizationVerified(request: OrganizationVerifiedRequest, responseObserver: StreamObserver<OrganizationVerifiedResponse>) {
-        val wallet = addressService.getAddress(request.organizationTxHash)
-        val verified = organizationService.isVerified(wallet)
-        responseObserver.onNext(
-                OrganizationVerifiedResponse.newBuilder()
-                        .setVerified(verified)
-                        .build()
-        )
-        responseObserver.onCompleted()
+    override fun generateWithdrawOrganizationFundsTx(request: GenerateWithdrawOrganizationFundsTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        try {
+            val from = addressService.getAddress(request.fromTxHash)
+            val org = addressService.getAddress(request.organizationTxHash)
+            val tx = organizationService.generateWithdrawFundsTx(
+                    from,
+                    org,
+                    request.tokenIssuer,
+                    eurToToken(request.amount)
+            )
+            responseObserver.onNext(convert(tx))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
     }
 
-//    override fun getAllOrganizationProjects(request: OrganizationProjectsRequest, responseObserver: StreamObserver<OrganizationProjectsResponse>) {
-//        val projects = organizationService.getAllProjects(
-//                request.organization
-//        )
-//        responseObserver.onNext(
-//                OrganizationProjectsResponse.newBuilder()
-//                        .addAllProjects(projects)
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun getAllOrganizationMembers(request: OrganizationMembersRequest, responseObserver: StreamObserver<OrganizationMembersResponse>) {
-//        val members = organizationService.getMembers(
-//                request.organization
-//        )
-//        responseObserver.onNext(
-//                OrganizationMembersResponse.newBuilder()
-//                        .addAllMembers(members)
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
+    override fun generateAddOrganizationMemberTx(request: GenerateAddMemberTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        try {
+            val from = addressService.getAddress(request.fromTxHash)
+            val org = addressService.getAddress(request.organizationTxHash)
+            val member = addressService.getAddress(request.memberTxHash)
+            val tx = organizationService.generateAddMemberTx(from, org, member)
+            responseObserver.onNext(convert(tx))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun generateAddOrganizationProjectTx(request: GenerateAddProjectTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        try {
+            val from = addressService.getAddress(request.fromTxHash)
+            val org = addressService.getAddress(request.organizationTxHash)
+            val tx = organizationService.generateAddProjectTx(
+                    from,
+                    org,
+                    eurToToken(request.maxInvestmentPerUser),
+                    eurToToken(request.minInvestmentPerUser),
+                    eurToToken(request.investmentCap)
+            )
+            responseObserver.onNext(convert(tx))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun isOrganizationVerified(request: OrganizationVerifiedRequest, responseObserver: StreamObserver<OrganizationVerifiedResponse>) {
+        try {
+            val wallet = addressService.getAddress(request.organizationTxHash)
+            val verified = organizationService.isVerified(wallet)
+            responseObserver.onNext(
+                    OrganizationVerifiedResponse.newBuilder()
+                            .setVerified(verified)
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun getAllOrganizationProjects(request: OrganizationProjectsRequest, responseObserver: StreamObserver<OrganizationProjectsResponse>) {
+        try {
+            val address = addressService.getAddress(request.organizationTxHash)
+            val projects = organizationService.getAllProjects(address)
+            responseObserver.onNext(
+                    OrganizationProjectsResponse.newBuilder()
+                            .addAllProjects(projects)
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun getAllOrganizationMembers(request: OrganizationMembersRequest, responseObserver: StreamObserver<OrganizationMembersResponse>) {
+        try {
+            val org = addressService.getAddress(request.organizationTxHash)
+            val members = organizationService.getMembers(org)
+            responseObserver.onNext(
+                    OrganizationMembersResponse.newBuilder()
+                            .addAllMembers(members)
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
 //
 //    override fun generateWithdrawProjectFundsTx(request: GenerateWithdrawProjectFundsTx, responseObserver: StreamObserver<RawTxResponse>) {
 //        val tx = projectService.generateWithdrawFundsTx(
@@ -321,50 +358,48 @@ class BlockchainService(
 //        responseObserver.onCompleted()
 //    }
 //
-//    override fun getProjectName(request: ProjectNameRequest, responseObserver: StreamObserver<ProjectNameResponse>) {
-//        responseObserver.onNext(
-//                ProjectNameResponse.newBuilder()
-//                        .setName(projectService.getName(request.project))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
 //
-//    override fun getProjectDescription(request: ProjectDescriptionRequest, responseObserver: StreamObserver<ProjectDescriptionResponse>) {
-//        responseObserver.onNext(
-//                ProjectDescriptionResponse.newBuilder()
-//                        .setDescription(projectService.getDescription(request.project))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun getProjectMaxInvestmentPerUser(request: ProjectMaxInvestmentPerUserRequest, responseObserver: StreamObserver<ProjectMaxInvestmentPerUserResponse>) {
-//        responseObserver.onNext(
-//                ProjectMaxInvestmentPerUserResponse.newBuilder()
-//                        .setAmount(tokenToEur(projectService.getMaxInvestmentPerUser(request.project)))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun getProjectMinInvestmentPerUser(request: ProjectMinInvestmentPerUserRequest, responseObserver: StreamObserver<ProjectMinInvestmentPerUserResponse>) {
-//        responseObserver.onNext(
-//                ProjectMinInvestmentPerUserResponse.newBuilder()
-//                        .setAmount(tokenToEur(projectService.getMinInvestmentPerUser(request.project)))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun getProjectInvestmentCap(request: ProjectInvestmentCapRequest, responseObserver: StreamObserver<ProjectInvestmentCapResponse>) {
-//        responseObserver.onNext(
-//                ProjectInvestmentCapResponse.newBuilder()
-//                        .setAmount(tokenToEur(projectService.getInvestmentCap(request.project)))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
+    override fun getProjectMaxInvestmentPerUser(request: ProjectMaxInvestmentPerUserRequest, responseObserver: StreamObserver<ProjectMaxInvestmentPerUserResponse>) {
+        try {
+            val address = addressService.getAddress(request.projectTxHash)
+            responseObserver.onNext(
+                    ProjectMaxInvestmentPerUserResponse.newBuilder()
+                            .setAmount(tokenToEur(projectService.getMaxInvestmentPerUser(address)))
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun getProjectMinInvestmentPerUser(request: ProjectMinInvestmentPerUserRequest, responseObserver: StreamObserver<ProjectMinInvestmentPerUserResponse>) {
+        try {
+            val address = addressService.getAddress(request.projectTxHash)
+            responseObserver.onNext(
+                    ProjectMinInvestmentPerUserResponse.newBuilder()
+                            .setAmount(tokenToEur(projectService.getMinInvestmentPerUser(address)))
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun getProjectInvestmentCap(request: ProjectInvestmentCapRequest, responseObserver: StreamObserver<ProjectInvestmentCapResponse>) {
+        try {
+            val address = addressService.getAddress(request.projectTxHash)
+            responseObserver.onNext(
+                    ProjectInvestmentCapResponse.newBuilder()
+                            .setAmount(tokenToEur(projectService.getInvestmentCap(address)))
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
+    }
 //
 //    override fun getProjectCurrentTotalInvestment(request: ProjectCurrentTotalInvestmentRequest, responseObserver: StreamObserver<ProjectCurrentTotalInvestmentResponse>) {
 //        responseObserver.onNext(

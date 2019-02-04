@@ -6,7 +6,6 @@ import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
 import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Address
-import org.web3j.abi.datatypes.Utf8String
 import org.web3j.abi.datatypes.DynamicArray
 import org.web3j.abi.datatypes.Bool
 import org.web3j.abi.datatypes.Function
@@ -80,8 +79,6 @@ class OrganizationServiceImpl(val web3j: Web3j) : OrganizationService {
     override fun generateAddProjectTx(
         from: String,
         organization: String,
-        name: String,
-        description: String,
         maxInvestmentPerUser: BigInteger,
         minInvestmentPerUser: BigInteger,
         investmentCap: BigInteger
@@ -89,8 +86,6 @@ class OrganizationServiceImpl(val web3j: Web3j) : OrganizationService {
         val function = Function(
                 "addProject",
                 listOf(
-                        Utf8String(name),
-                        Utf8String(description),
                         Uint256(maxInvestmentPerUser),
                         Uint256(minInvestmentPerUser),
                         Uint256(investmentCap)

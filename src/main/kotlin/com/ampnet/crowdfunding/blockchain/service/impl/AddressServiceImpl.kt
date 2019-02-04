@@ -9,9 +9,9 @@ import org.springframework.stereotype.Service
 
 @Service
 class AddressServiceImpl(
-        private val walletRepository: WalletRepository,
-        private val transactionService: TransactionService
-): AddressService {
+    private val walletRepository: WalletRepository,
+    private val transactionService: TransactionService
+) : AddressService {
 
     override fun getAddress(txHash: String): String {
         val wallet = walletRepository.findByHash(txHash).orElseThrow {
@@ -30,5 +30,4 @@ class AddressServiceImpl(
         wallet.address = address
         walletRepository.save(wallet)
     }
-
 }

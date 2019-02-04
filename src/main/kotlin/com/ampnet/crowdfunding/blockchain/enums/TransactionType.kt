@@ -9,11 +9,12 @@ enum class TransactionType(val functionHash: String) {
     ORG_CREATE(EthUtilities.getFunctionHash("addOrganization()")),
     DEPOSIT(EthUtilities.getFunctionHash("mint(address,uint256)")),
     PENDING_WITHDRAW(EthUtilities.getFunctionHash("approve(address,uint256)")),
+    PENDING_ORG_WITHDRAW(EthUtilities.getFunctionHash("withdrawFunds(address,uint256)")),
     WITHDRAW(EthUtilities.getFunctionHash("burnFrom(address,uint256)")),
     INVEST(EthUtilities.getFunctionHash("addWallet(address,uint256)")),
     TRANSFER(EthUtilities.getFunctionHash("transfer(address,uint256)")),
     ORG_ADD_MEMBER(EthUtilities.getFunctionHash("addMember(address)")),
-    ORG_ADD_PROJECT(EthUtilities.getFunctionHash("addProject(string,string,uint256,uint256,uint256)")),
+    ORG_ADD_PROJECT(EthUtilities.getFunctionHash("addProject(uint256,uint256,uint256)")),
     ORG_ACTIVATE(EthUtilities.getFunctionHash("activate()")),
     TRANSFER_OWNERSHIP(EthUtilities.getFunctionHash("transferOwnership(address,uint256)")),
     CANCEL_INVESTMENT(EthUtilities.getFunctionHash("cancelInvestment(uint256)"));
