@@ -16,12 +16,12 @@ class WalletServiceImpl(
 ) : WalletService {
 
     override fun get(address: String): Optional<Wallet> {
-        return walletRepository.findByAddress(address)
+        return walletRepository.findByAddress(address.toLowerCase())
     }
 
     @Transactional
     override fun getPublicKey(txHash: String): String? {
-        val wallet = walletRepository.findByHash(txHash).orElseThrow {
+        val wallet = walletRepository.findByHash(txHash.toLowerCase()).orElseThrow {
             throw Status.NOT_FOUND
                     .withDescription("Wallet creation tx: $txHash does not exist!")
                     .asRuntimeException()
@@ -30,7 +30,7 @@ class WalletServiceImpl(
     }
 
     override fun getTxHash(address: String): String {
-        val wallet = walletRepository.findByAddress(address).orElseThrow {
+        val wallet = walletRepository.findByAddress(address.toLowerCase()).orElseThrow {
             throw Status.NOT_FOUND
                     .withDescription("Wallet with address: $address does not exist!")
                     .asRuntimeException()
@@ -40,7 +40,7 @@ class WalletServiceImpl(
 
     @Transactional
     override fun storePublicKey(publicKey: String, forTxHash: String) {
-        val wallet = walletRepository.findByHash(forTxHash).orElseThrow {
+        val wallet = walletRepository.findByHash(forTxHash.toLowerCase()).orElseThrow {
             throw Status.NOT_FOUND
                     .withDescription("Wallet with txHash: $forTxHash does not exist")
                     .asRuntimeException()

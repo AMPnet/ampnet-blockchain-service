@@ -1,6 +1,6 @@
 CREATE TABLE transaction (
   id SERIAL PRIMARY KEY,
-  hash VARCHAR(66) NOT NULL,
+  hash VARCHAR(66) NOT NULL UNIQUE,
   from_wallet VARCHAR(66) NOT NULL,
   to_wallet VARCHAR(66) NOT NULL,
   input VARCHAR NOT NULL,
