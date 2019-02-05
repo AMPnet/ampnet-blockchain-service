@@ -22,7 +22,6 @@ import org.web3j.protocol.Web3j
 import java.math.BigInteger
 import java.time.ZonedDateTime
 import javax.transaction.Transactional
-import kotlin.math.sign
 
 @Service
 class TransactionServiceImpl(
@@ -353,12 +352,12 @@ class TransactionServiceImpl(
     }
 
     private fun saveTransaction(
-            hash: String,
-            from: String,
-            to: String,
-            input: String,
-            type: TransactionType,
-            amount: BigInteger? = null
+        hash: String,
+        from: String,
+        to: String,
+        input: String,
+        type: TransactionType,
+        amount: BigInteger? = null
     ): Transaction {
         if (transactionRepository.findByHash(hash.toLowerCase()).isPresent) {
             throw Status.ABORTED
