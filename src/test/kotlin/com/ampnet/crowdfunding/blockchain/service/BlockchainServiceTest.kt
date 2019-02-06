@@ -1,10 +1,12 @@
 package com.ampnet.crowdfunding.blockchain.service
 
 import com.ampnet.crowdfunding.blockchain.TestBase
+import com.ampnet.crowdfunding.blockchain.enums.ErrorCode
 import com.ampnet.crowdfunding.blockchain.enums.TransactionState
 import com.ampnet.crowdfunding.blockchain.enums.TransactionType
 import com.ampnet.crowdfunding.blockchain.enums.WalletType
 import com.ampnet.crowdfunding.blockchain.persistence.model.Transaction
+import com.ampnet.crowdfunding.blockchain.persistence.model.Wallet
 import com.ampnet.crowdfunding.blockchain.persistence.repository.TransactionRepository
 import com.ampnet.crowdfunding.blockchain.persistence.repository.WalletRepository
 import com.ampnet.crowdfunding.proto.ActivateOrganizationRequest
@@ -30,14 +32,17 @@ import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import com.ampnet.crowdfunding.proto.WalletActiveRequest
+import io.grpc.StatusRuntimeException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
 import org.web3j.utils.Numeric
 import java.math.BigInteger
+import java.time.ZonedDateTime
 
 class BlockchainServiceTest : TestBase() {
 
@@ -334,6 +339,37 @@ class BlockchainServiceTest : TestBase() {
         }
     }
 
+    @Test
+    fun shouldCatchErrorWhenWalletWithTxHashTransactionFailed() {
+        val failedTxHash = "failedtxhash"
+
+        suppose("Failed txHash is stored in database") {
+            val tx = Transaction::class.java.newInstance()
+            tx.createdAt = ZonedDateTime.now()
+            tx.state = TransactionState.FAILED
+            tx.type = TransactionType.WALLET_CREATE
+            tx.input = ""
+            tx.fromWallet = "walletA"
+            tx.toWallet = "walletB"
+            tx.hash = failedTxHash
+            transactionRepository.save(tx)
+
+            val wallet = Wallet::class.java.newInstance()
+            wallet.hash = failedTxHash
+            wallet.publicKey = "pubkey"
+            wallet.type = WalletType.USER
+            walletRepository.save(wallet)
+        }
+
+        verify("Should catch error when querying balance of failedTxHash organization") {
+            val e = assertThrows<StatusRuntimeException> {
+                getBalance(failedTxHash)
+            }
+            val errorCode = ErrorCode.fromMessage(e.status.description.orEmpty())
+            assertThat(errorCode).isEqualTo(ErrorCode.WALLET_CREATION_FAILED.code)
+        }
+    }
+
 //    @Test
 //    fun mustBeAbleForUsersToInvestInProjectAndReachCap() {
 //        lateinit var organization: String
@@ -522,23 +558,31 @@ class BlockchainServiceTest : TestBase() {
     }
 
     private fun addAndApproveOrganization(adminTxHash: String, admin: Credentials): String {
+        val orgTxHash = addOrganization(adminTxHash, admin)
+        approveOrganization(orgTxHash)
+        return orgTxHash
+    }
+
+    private fun addOrganization(adminTxHash: String, admin: Credentials): String {
         val addOrgTx = grpc.generateAddOrganizationTx(
                 GenerateAddOrganizationTxRequest.newBuilder()
                         .setFromTxHash(adminTxHash)
                         .build()
         )
-        val orgCreateTxHash = grpc.postTransaction(
+        return grpc.postTransaction(
                 PostTxRequest.newBuilder()
                         .setData(sign(addOrgTx, admin))
                         .setTxType(typeToProto(TransactionType.ORG_CREATE))
                         .build()
         ).txHash
+    }
+
+    private fun approveOrganization(orgTxHash: String) {
         grpc.activateOrganization(
                 ActivateOrganizationRequest.newBuilder()
-                        .setOrganizationTxHash(orgCreateTxHash)
+                        .setOrganizationTxHash(orgTxHash)
                         .build()
         )
-        return orgCreateTxHash
     }
 
     private fun isWalletActive(fromTxHash: String): Boolean {

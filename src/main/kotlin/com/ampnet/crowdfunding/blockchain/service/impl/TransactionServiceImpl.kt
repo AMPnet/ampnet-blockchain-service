@@ -1,6 +1,7 @@
 package com.ampnet.crowdfunding.blockchain.service.impl
 
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
+import com.ampnet.crowdfunding.blockchain.enums.ErrorCode
 import com.ampnet.crowdfunding.blockchain.enums.TransactionState
 import com.ampnet.crowdfunding.blockchain.enums.TransactionType
 import com.ampnet.crowdfunding.blockchain.enums.WalletType
@@ -99,13 +100,19 @@ class TransactionServiceImpl(
                 }
             }
             TransactionState.PENDING -> {
-                throw Status.UNAVAILABLE
-                        .withDescription("Transaction with txHash: ${tx.hash} not yet mined!")
+                throw Status.INTERNAL
+                        .withDescription(
+                                ErrorCode.WALLET_CREATION_PENDING
+                                        .withMessage("Transaction with txHash: ${tx.hash} not yet mined!")
+                        )
                         .asRuntimeException()
             }
             TransactionState.FAILED -> {
                 throw Status.INTERNAL
-                        .withDescription("Transaction with txHash: ${tx.hash} failed!")
+                        .withDescription(
+                                ErrorCode.WALLET_CREATION_FAILED
+                                        .withMessage("Transaction with txHash: ${tx.hash} failed!")
+                        )
                         .asRuntimeException()
             }
         }
