@@ -31,11 +31,29 @@ import java.util.concurrent.TimeUnit
 abstract class TestBase {
 
     class Accounts {
-        val ampnetOwner = Credentials.create("0xa88400ec75febb4244f4a04d8290ae2fbdbedb874553eb86b91f10c9de4f5fa8")
-        val eurOwner = Credentials.create("0xec3cd0b40d2952cc77cac778461e89dd958684b43320ff0ba1cf3ee435badf32")
-        val alice = Credentials.create("0x16675095b2ebbe3402d71c018158a8cef7b8cdad650e716de17c487190133932")
-        val bob = Credentials.create("0xb93de5fb1b8a74a2a1858b1e336185331a3e40a266ca3afb9b689f12ff0e8e8b")
-        val jane = Credentials.create("0x368e184997dd02a05cba483a01f63852ee649afd02d8ae74fb9369c579a0631c")
+        /*
+            mnemonic: cable high nice seek trash erase garage already fork fog manual series express clay easily pelican imitate detect gaze level protect agree stem area
+            address: 0x1dee7718aaca3ce44c010b87efcdc71477714637
+         */
+        val ampnetOwner = Credentials.create("0x4843d7e2658482c2cab8cf79576e4112d156fd87dda1e08468b51fe34fd08569")
+
+        /*
+            mnemonic: rent tongue caught column obtain genre person bus carry extend twenty fiction
+            address: 0x43b0d9b605e68a0c50dc436757a86c82d97787cc
+         */
+        val eurOwner = Credentials.create("0xc0c85e6b373d090048676f0c82542cb3bb6793491450f478b147614262718cdd")
+
+        /*
+            mnemonic: sketch sentence arrive fringe square jar birth ribbon priority coast pear comic
+            address: 0x722f586a528da40924cef8372946ad2dded2a8be
+         */
+        val alice = Credentials.create("0xe8c7e2bdd82569189d73cb618391973c8f52d8ba651446a00a87cc67c8219781")
+
+        /*
+            mnemonic: hybrid check vessel more afford mistake fever edge permit fitness hard hero
+            address: 0x89451cfe47ec2e68a82b5ea4b06eb711c0f6351f
+         */
+        val bob = Credentials.create("0x215d6c308a70b5b74081ec71f7d67495b0c3c88bf0ba119b8eeb022cf2c20251")
     }
 
     data class TestProject(
