@@ -78,6 +78,7 @@ dependencies {
 	implementation "io.grpc:grpc-protobuf:${grpcVersion}"
 	implementation "io.grpc:grpc-stub:${grpcVersion}"
 	implementation 'io.github.lognet:grpc-spring-boot-starter:3.0.0'
+	implementation 'io.github.novacrypto:Base58:2019.01.27@jar'
 
 	testImplementation('org.springframework.boot:spring-boot-starter-test')
 	testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")

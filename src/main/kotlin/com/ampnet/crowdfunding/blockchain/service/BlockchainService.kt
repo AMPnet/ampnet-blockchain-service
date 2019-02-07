@@ -33,6 +33,7 @@ import com.ampnet.crowdfunding.proto.OrganizationProjectsRequest
 import com.ampnet.crowdfunding.proto.OrganizationProjectsResponse
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedResponse
+import com.ampnet.crowdfunding.proto.PostVaultTxRequest
 import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
 import com.ampnet.crowdfunding.proto.ProjectInvestmentCapResponse
 import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
@@ -40,12 +41,16 @@ import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserResponse
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserResponse
 import com.ampnet.crowdfunding.proto.RawTxResponse
+import io.github.novacrypto.base58.Base58
 import io.grpc.stub.StreamObserver
 import mu.KLogging
 import org.lognet.springboot.grpc.GRpcService
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
+import org.web3j.rlp.RlpDecoder
+import org.web3j.rlp.RlpList
+import org.web3j.rlp.RlpString
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 
@@ -533,6 +538,20 @@ class BlockchainService(
         }
     }
 
+    override fun postVaultTransaction(request: PostVaultTxRequest, responseObserver: StreamObserver<PostTxResponse>) {
+        logger.info { "Received request to postVaultTransaction: $request" }
+        try {
+            val txData = decodeVaultTransaction(request.data)
+            val postResponse = post(txData, TransactionType.valueOf(request.txType.name))
+            logger.info { "Successfully postVaultTransaction" }
+            responseObserver.onNext(postResponse)
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to postVaultTransaction" }
+            responseObserver.onError(e)
+        }
+    }
+
     private fun sign(rawTx: RawTransaction, credentials: Credentials): String {
         val signedTx = TransactionEncoder.signMessage(rawTx, credentials)
         return Numeric.toHexString(signedTx)
@@ -562,5 +581,21 @@ class BlockchainService(
 
     private fun tokenToEur(token: BigInteger): Long {
         return (token / tokenFactor).longValueExact()
+    }
+
+    private fun decodeVaultTransaction(encodedTx: String): String {
+        // Base58 decode
+        val decodedBytesWithChecksum = Base58.base58Decode(encodedTx)
+        val size = decodedBytesWithChecksum.size
+
+        // Remove last 4 bytes (checksum)
+        val decodedBytes = decodedBytesWithChecksum.take(size - 4).toByteArray()
+
+        // Extract tx payload from decoded input
+        val rlp = RlpDecoder.decode(decodedBytes).values[0] as RlpList
+        val payload = rlp.values[3] as RlpList
+        val tx = payload.values[0] as RlpString
+
+        return tx.bytes.toString(Charsets.UTF_8)
     }
 }
