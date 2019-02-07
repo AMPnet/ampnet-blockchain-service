@@ -27,11 +27,13 @@ import com.ampnet.crowdfunding.proto.OrganizationProjectsRequest
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.PostTxRequest
 import com.ampnet.crowdfunding.proto.PostTxResponse
+import com.ampnet.crowdfunding.proto.PostVaultTxRequest
 import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
 import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import com.ampnet.crowdfunding.proto.WalletActiveRequest
+import io.github.novacrypto.base58.Base58
 import io.grpc.StatusRuntimeException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -40,6 +42,9 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
+import org.web3j.rlp.RlpEncoder
+import org.web3j.rlp.RlpList
+import org.web3j.rlp.RlpString
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.time.ZonedDateTime
@@ -517,9 +522,9 @@ class BlockchainServiceTest : TestBase() {
                         .setApprove(accounts.eurOwner.address)
                         .build()
         )
-        grpc.postTransaction(
-                PostTxRequest.newBuilder()
-                        .setData(sign(approveTx, fromCredentials))
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(approveTx, fromCredentials)))
                         .setTxType(typeToProto(TransactionType.PENDING_WITHDRAW))
                         .build()
         )
@@ -549,9 +554,9 @@ class BlockchainServiceTest : TestBase() {
                         .setAmount(amount)
                         .build()
         )
-        grpc.postTransaction(
-                PostTxRequest.newBuilder()
-                        .setData(sign(transferTx, from))
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(transferTx, from)))
                         .setTxType(typeToProto(TransactionType.TRANSFER))
                         .build()
         )
@@ -569,9 +574,9 @@ class BlockchainServiceTest : TestBase() {
                         .setFromTxHash(adminTxHash)
                         .build()
         )
-        return grpc.postTransaction(
-                PostTxRequest.newBuilder()
-                        .setData(sign(addOrgTx, admin))
+        return grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(addOrgTx, admin)))
                         .setTxType(typeToProto(TransactionType.ORG_CREATE))
                         .build()
         ).txHash
@@ -631,9 +636,9 @@ class BlockchainServiceTest : TestBase() {
                         .setMemberTxHash(memberTxHash)
                         .build()
         )
-        grpc.postTransaction(
-                PostTxRequest.newBuilder()
-                        .setData(sign(addMemberTx, admin))
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(addMemberTx, admin)))
                         .setTxType(typeToProto(TransactionType.ORG_ADD_MEMBER))
                         .build()
         )
@@ -688,9 +693,9 @@ class BlockchainServiceTest : TestBase() {
                         .setInvestmentCap(project.invesmentCap)
                         .build()
         )
-        return grpc.postTransaction(
-                PostTxRequest.newBuilder()
-                        .setData(sign(createProjectTx, admin))
+        return grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(createProjectTx, admin)))
                         .setTxType(typeToProto(TransactionType.ORG_ADD_PROJECT))
                         .build()
         ).txHash
@@ -705,9 +710,9 @@ class BlockchainServiceTest : TestBase() {
                         .setTokenIssuer(accounts.eurOwner.address)
                         .build()
         )
-        grpc.postTransaction(
-                PostTxRequest.newBuilder()
-                        .setData(sign(withdrawTx, admin))
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(withdrawTx, admin)))
                         .setTxType(typeToProto(TransactionType.PENDING_ORG_WITHDRAW))
                         .build()
         )
@@ -812,6 +817,19 @@ class BlockchainServiceTest : TestBase() {
         return Numeric.toHexString(
                 TransactionEncoder.signMessage(rawTx, credentials)
         )
+    }
+
+    private fun convertToVaultEncoding(signedRawTx: String): String {
+        val version = RlpString.create("1")
+        val type = RlpString.create("1")
+        val protocol = RlpString.create("eth")
+        val payload = RlpList(
+                RlpString.create(signedRawTx),
+                RlpString.create("account-identifier")
+        )
+        val rlpEncodedTx = RlpEncoder.encode(RlpList(version, type, protocol, payload))
+        val fakeChecksum = byteArrayOf(0, 0, 0, 0)
+        return Base58.base58Encode(rlpEncodedTx + fakeChecksum)
     }
 
     // Helper functions
