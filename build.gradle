@@ -104,6 +104,9 @@ protobuf {
 }
 
 jib.container.useCurrentTimestamp = true
+jib.to.image = "ampnet/crowdfunding-blockchain:${version}"
+jib.to.auth.username = "${System.env.DOCKER_USERNAME}"
+jib.to.auth.password = "${System.env.DOCKER_PASSWORD}"
 
 task ktlint(type: JavaExec, group: "verification") {
 	description = "Check Kotlin code style."
