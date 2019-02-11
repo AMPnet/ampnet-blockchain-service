@@ -81,7 +81,7 @@ class BlockchainServiceTest : TestBase() {
             assertThat(walletsResponse).hasSize(1)
 
             val wallet = walletsResponse.first()
-            assertThat(wallet.hash).isEqualTo(txResponse.txHash)
+            assertThat(wallet.transaction.hash).isEqualTo(txResponse.txHash)
             assertThat(wallet.type).isEqualTo(WalletType.USER)
             assertThat(wallet.address).isEqualTo(accounts.bob.address)
             assertThat(wallet.publicKey).isEqualTo(getPublicKey(accounts.bob))
@@ -346,24 +346,10 @@ class BlockchainServiceTest : TestBase() {
 
     @Test
     fun shouldCatchErrorWhenWalletWithTxHashTransactionFailed() {
-        val failedTxHash = "failedtxhash"
+        val failedTxHash = "failed-tx-hash"
 
         suppose("Failed txHash is stored in database") {
-            val tx = Transaction::class.java.newInstance()
-            tx.createdAt = ZonedDateTime.now()
-            tx.state = TransactionState.FAILED
-            tx.type = TransactionType.WALLET_CREATE
-            tx.input = ""
-            tx.fromWallet = "walletA"
-            tx.toWallet = "walletB"
-            tx.hash = failedTxHash
-            transactionRepository.save(tx)
-
-            val wallet = Wallet::class.java.newInstance()
-            wallet.hash = failedTxHash
-            wallet.publicKey = "pubkey"
-            wallet.type = WalletType.USER
-            walletRepository.save(wallet)
+            persistTestWallet(accounts.bob.address, failedTxHash, TransactionState.FAILED)
         }
 
         verify("Should catch error when querying balance of failedTxHash organization") {
@@ -372,6 +358,56 @@ class BlockchainServiceTest : TestBase() {
             }
             val errorCode = ErrorCode.fromMessage(e.status.description.orEmpty())
             assertThat(errorCode).isEqualTo(ErrorCode.WALLET_CREATION_FAILED.code)
+        }
+    }
+
+    @Test
+    fun shouldCatchErrorWhenWalletWithTxHashStillPendingAndUserExecutesSomeTransaction() {
+        val pendingTxHash = "pending-tx-hash"
+
+        suppose("Wallet creation tx is stored in database and still pending") {
+            persistTestWallet(accounts.bob.address, pendingTxHash, TransactionState.PENDING)
+        }
+
+        verify("User tries to create organization and error is thrown") {
+            val e = assertThrows<StatusRuntimeException> {
+                addOrganization(pendingTxHash, accounts.bob)
+            }
+            val errorCode = ErrorCode.fromMessage(e.status.description.orEmpty())
+            assertThat(errorCode).isEqualTo(ErrorCode.WALLET_CREATION_PENDING.code)
+        }
+    }
+
+    @Test
+    fun shouldCatchErrorWhenWalletTxPendingAndUserTriesToAddSameWallet() {
+        val pendingTxHash = "pending-tx-hash"
+
+        suppose("Wallet creation tx is stored in database and still pending") {
+            persistTestWallet(accounts.bob.address, pendingTxHash, TransactionState.PENDING)
+        }
+
+        verify("User tries to create organization and error is thrown") {
+            val e = assertThrows<StatusRuntimeException> {
+                addWallet(accounts.bob)
+            }
+            val errorCode = ErrorCode.fromMessage(e.status.description.orEmpty())
+            assertThat(errorCode).isEqualTo(ErrorCode.WALLET_ALREADY_EXISTS.code)
+        }
+    }
+
+    @Test
+    fun shouldReturnPublicKeyWithGeneratedTransaction() {
+        lateinit var bobTxHash: String
+        suppose("User bob exists") {
+            bobTxHash = addWallet(accounts.bob).txHash
+        }
+        verify("Bob public key is available in generated transaction") {
+            val tx = grpc.generateAddOrganizationTx(
+                    GenerateAddOrganizationTxRequest.newBuilder()
+                            .setFromTxHash(bobTxHash)
+                            .build()
+            )
+            assertThat(tx.publicKey).isEqualTo(getPublicKey(accounts.bob))
         }
     }
 
@@ -861,5 +897,24 @@ class BlockchainServiceTest : TestBase() {
 
     private fun typeToProto(type: TransactionType): com.ampnet.crowdfunding.proto.TransactionType {
         return com.ampnet.crowdfunding.proto.TransactionType.valueOf(type.name)
+    }
+
+    private fun persistTestWallet(address: String, txHash: String, state: TransactionState) {
+        val tx = Transaction::class.java.newInstance()
+        tx.createdAt = ZonedDateTime.now()
+        tx.state = state
+        tx.type = TransactionType.WALLET_CREATE
+        tx.input = ""
+        tx.fromWallet = "walletA"
+        tx.toWallet = "walletB"
+        tx.hash = txHash
+        transactionRepository.save(tx)
+
+        val wallet = Wallet::class.java.newInstance()
+        wallet.transaction = tx
+        wallet.publicKey = "pubkey"
+        wallet.type = WalletType.USER
+        wallet.address = address
+        walletRepository.save(wallet)
     }
 }

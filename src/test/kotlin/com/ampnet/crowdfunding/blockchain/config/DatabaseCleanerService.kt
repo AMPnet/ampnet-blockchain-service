@@ -9,7 +9,6 @@ class DatabaseCleanerService(val em: EntityManager) {
 
     @Transactional
     fun deleteAll() {
-        em.createNativeQuery("TRUNCATE transaction").executeUpdate()
-        em.createNativeQuery("TRUNCATE wallet").executeUpdate()
+        em.createNativeQuery("TRUNCATE transaction CASCADE").executeUpdate()
     }
 }

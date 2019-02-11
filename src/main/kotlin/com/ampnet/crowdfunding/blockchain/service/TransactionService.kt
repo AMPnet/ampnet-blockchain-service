@@ -11,7 +11,5 @@ interface TransactionService {
 
     fun getAllTransactions(wallet: String): List<Transaction>
 
-    fun getAddressFromHash(hash: String): String
-
     fun updateTransactionStates()
 }
