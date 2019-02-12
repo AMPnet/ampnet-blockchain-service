@@ -133,8 +133,11 @@ class TransactionServiceImpl(
                     }
                     else -> {
                         throw Status.INVALID_ARGUMENT
-                                .withDescription("Only addWallet(address) function currently supported!")
-                                .asRuntimeException()
+                                .withDescription(
+                                        ErrorCode.INVALID_FUNCTION_CALL.withMessage(
+                                                "AMPnet Contract: Function call not recognized!"
+                                        )
+                                ).asRuntimeException()
                     }
                 }
             }
@@ -199,7 +202,7 @@ class TransactionServiceImpl(
                         throw Status.INVALID_ARGUMENT
                                 .withDescription(
                                         ErrorCode.INVALID_FUNCTION_CALL.withMessage(
-                                                "Function call not recognized!"
+                                                "EUR Contract: Function call not recognized!"
                                         )
                                 ).asRuntimeException()
                     }
@@ -249,8 +252,11 @@ class TransactionServiceImpl(
                     }
                     else -> {
                         throw Status.INVALID_ARGUMENT
-                                .withDescription("Unsupported Organization contract function called!")
-                                .asRuntimeException()
+                                .withDescription(
+                                        ErrorCode.INVALID_FUNCTION_CALL.withMessage(
+                                                "Organization Contract: Function call not recognized!"
+                                        )
+                                ).asRuntimeException()
                     }
                 }
             }
@@ -271,7 +277,7 @@ class TransactionServiceImpl(
                         throw Status.INVALID_ARGUMENT
                                 .withDescription(
                                         ErrorCode.INVALID_FUNCTION_CALL.withMessage(
-                                            "Invalid Project contract function call!"
+                                                "Project Contract: Function call not recognized!"
                                         )
                                 ).asRuntimeException()
                     }
