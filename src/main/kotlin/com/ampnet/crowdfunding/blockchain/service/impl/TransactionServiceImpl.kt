@@ -11,11 +11,9 @@ import com.ampnet.crowdfunding.blockchain.persistence.repository.TransactionRepo
 import com.ampnet.crowdfunding.blockchain.persistence.repository.WalletRepository
 import com.ampnet.crowdfunding.blockchain.service.TransactionService
 import com.ampnet.crowdfunding.blockchain.service.WalletService
+import com.ampnet.crowdfunding.blockchain.util.AbiUtils
 import io.grpc.Status
 import org.springframework.stereotype.Service
-import org.web3j.abi.TypeDecoder
-import org.web3j.abi.datatypes.Address
-import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.SignedRawTransaction
 import org.web3j.crypto.TransactionDecoder
@@ -83,42 +81,6 @@ class TransactionServiceImpl(
     }
 
     @Transactional
-    override fun getAddressFromHash(hash: String): String {
-        val tx = getTransaction(hash)
-        when (tx.state) {
-            TransactionState.MINED -> {
-                val receipt = web3j.ethGetTransactionReceipt(hash).send().transactionReceipt.get()
-                when (tx.type) {
-                    TransactionType.WALLET_CREATE, TransactionType.ORG_CREATE, TransactionType.ORG_ADD_PROJECT -> {
-                        return decodeAddress(receipt.logs.first().topics[1])
-                    }
-                    else -> {
-                        throw Status.INVALID_ARGUMENT
-                                .withDescription("Provided txHash: ${tx.hash} does not reference wallet creation transaction!")
-                                .asRuntimeException()
-                    }
-                }
-            }
-            TransactionState.PENDING -> {
-                throw Status.INTERNAL
-                        .withDescription(
-                                ErrorCode.WALLET_CREATION_PENDING
-                                        .withMessage("Transaction with txHash: ${tx.hash} not yet mined!")
-                        )
-                        .asRuntimeException()
-            }
-            TransactionState.FAILED -> {
-                throw Status.INTERNAL
-                        .withDescription(
-                                ErrorCode.WALLET_CREATION_FAILED
-                                        .withMessage("Transaction with txHash: ${tx.hash} failed!")
-                        )
-                        .asRuntimeException()
-            }
-        }
-    }
-
-    @Transactional
     override fun updateTransactionStates() {
         val pendingTransactions = transactionRepository.findAllPending()
         for (tx in pendingTransactions) {
@@ -140,28 +102,34 @@ class TransactionServiceImpl(
         val functionHash = input.substring(0, 8).toLowerCase()
         val inputData = input.substring(8)
 
+        throwIfTxAlreadyExists(txHash)
+
         when (type) {
             ContractType.AMPNET -> {
                 when (functionHash) {
                     TransactionType.WALLET_CREATE.functionHash -> {
-                        saveWallet(txHash, WalletType.USER)
-                        return saveTransaction(
+                        val address = AbiUtils.decodeAddress(inputData)
+                        throwIfAddressAlreadyExists(address)
+                        val tx = saveTransaction(
                                 hash = txHash,
                                 from = signedTx.from,
                                 to = txHash,
                                 input = signedTx.data,
                                 type = TransactionType.WALLET_CREATE
                         )
+                        saveWallet(address, WalletType.USER, tx)
+                        return tx
                     }
                     TransactionType.ORG_CREATE.functionHash -> {
-                        saveWallet(txHash, WalletType.ORG)
-                        return saveTransaction(
+                        val tx = saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.from),
                                 to = txHash,
                                 input = signedTx.data,
                                 type = TransactionType.ORG_CREATE
                         )
+                        saveWallet(type = WalletType.ORG, transaction = tx)
+                        return tx
                     }
                     else -> {
                         throw Status.INVALID_ARGUMENT
@@ -173,7 +141,7 @@ class TransactionServiceImpl(
             ContractType.EUR -> {
                 when (functionHash) {
                     TransactionType.DEPOSIT.functionHash -> {
-                        val (address, amount) = decodeAddressAndAmount(inputData)
+                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
                         return saveTransaction(
                                 hash = txHash,
                                 from = signedTx.from,
@@ -184,7 +152,7 @@ class TransactionServiceImpl(
                         )
                     }
                     TransactionType.WITHDRAW.functionHash -> {
-                        val (address, amount) = decodeAddressAndAmount(inputData)
+                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
                         return saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(address),
@@ -195,7 +163,7 @@ class TransactionServiceImpl(
                         )
                     }
                     TransactionType.PENDING_WITHDRAW.functionHash -> {
-                        val (address, amount) = decodeAddressAndAmount(inputData)
+                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
                         return saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.from.toLowerCase()),
@@ -206,7 +174,7 @@ class TransactionServiceImpl(
                         )
                     }
                     TransactionType.TRANSFER.functionHash -> {
-                        val (address, amount) = decodeAddressAndAmount(inputData)
+                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
                         return saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.from),
@@ -249,17 +217,18 @@ class TransactionServiceImpl(
                         )
                     }
                     TransactionType.ORG_ADD_PROJECT.functionHash -> {
-                        saveWallet(txHash, WalletType.PROJECT)
-                        return saveTransaction(
+                        val tx = saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.from),
                                 to = txHash,
                                 input = signedTx.data,
                                 type = TransactionType.ORG_ADD_PROJECT
                         )
+                        saveWallet(type = WalletType.PROJECT, transaction = tx)
+                        return tx
                     }
                     TransactionType.PENDING_ORG_WITHDRAW.functionHash -> {
-                        val (address, amount) = decodeAddressAndAmount(inputData)
+                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
                         return saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.to),
@@ -285,26 +254,18 @@ class TransactionServiceImpl(
     private fun getTargetContractType(txData: String): ContractType {
         val tx = TransactionDecoder.decode(txData) as SignedRawTransaction
         val toAddress = tx.to.toLowerCase()
-        if (toAddress == properties.contracts.ampnetAddress.toLowerCase()) {
-            return ContractType.AMPNET
-        } else if (toAddress == properties.contracts.eurAddress.toLowerCase()) {
-            return ContractType.EUR
-        } else {
-            val wallet = walletService.get(toAddress)
-            if (!wallet.isPresent) {
-                throw Status.INVALID_ARGUMENT
-                        .withDescription("<To> address not one of AMPnet smart contracts!")
-                        .asRuntimeException()
-            }
-            val walletType = wallet.get().type
-            if (walletType == WalletType.ORG) {
-                return ContractType.ORG
-            } else if (walletType == WalletType.PROJECT) {
-                return ContractType.PROJECT
-            } else {
-                throw Status.INVALID_ARGUMENT
-                        .withDescription("<To> address not one of AMPnet smart contracts!")
-                        .asRuntimeException()
+        return when (toAddress) {
+            properties.contracts.ampnetAddress.toLowerCase() -> ContractType.AMPNET
+            properties.contracts.eurAddress.toLowerCase() -> ContractType.EUR
+            else -> {
+                val wallet = walletService.getByAddress(toAddress)
+                when (wallet.type) {
+                    WalletType.ORG -> ContractType.ORG
+                    WalletType.PROJECT -> ContractType.PROJECT
+                    else -> throw Status.INVALID_ARGUMENT
+                            .withDescription("<To> address not one of AMPnet smart contracts!")
+                            .asRuntimeException()
+                }
             }
         }
     }
@@ -330,7 +291,7 @@ class TransactionServiceImpl(
 
         // User is forbidden to broadcast this transaction, throw error
         throw Status.FAILED_PRECONDITION
-                .withDescription("Transaction processing rejected! Caller not platform user.")
+                .withDescription(ErrorCode.CALLER_NOT_REGISTERED.withMessage("Transaction processing rejected! Caller $fromAddress not platform user."))
                 .asRuntimeException()
     }
 
@@ -340,21 +301,32 @@ class TransactionServiceImpl(
         val actualType = TransactionType.fromFunctionHash(functionSignature)
         if (actualType != txType) {
             throw Status.PERMISSION_DENIED
-                    .withDescription("Signed transaction does not match provided tx type.")
+                    .withDescription(ErrorCode.INVALID_TX_TYPE.withMessage("Signed transaction does not match provided tx type."))
                     .asRuntimeException()
         }
     }
 
-    private fun saveWallet(hash: String, type: WalletType) {
-        if (walletRepository.findByHash(hash.toLowerCase()).isPresent) {
+    private fun throwIfAddressAlreadyExists(address: String) {
+        if (walletRepository.findByAddress(address).isPresent) {
             throw Status.ABORTED
-                    .withDescription("Wallet with txHash: $hash already exists!")
+                    .withDescription(ErrorCode.WALLET_ALREADY_EXISTS.withMessage("Wallet with address $address already exists!"))
                     .asRuntimeException()
         }
+    }
 
+    private fun throwIfTxAlreadyExists(hash: String) {
+        if (transactionRepository.findByHash(hash.toLowerCase()).isPresent) {
+            throw Status.ABORTED
+                    .withDescription("Transaction with txHash: $hash already exists!")
+                    .asRuntimeException()
+        }
+    }
+
+    private fun saveWallet(address: String? = null, type: WalletType, transaction: Transaction) {
         val wallet = Wallet::class.java.newInstance()
-        wallet.hash = hash.toLowerCase()
         wallet.type = type
+        wallet.transaction = transaction
+        wallet.address = address
         walletRepository.save(wallet)
     }
 
@@ -366,12 +338,6 @@ class TransactionServiceImpl(
         type: TransactionType,
         amount: BigInteger? = null
     ): Transaction {
-        if (transactionRepository.findByHash(hash.toLowerCase()).isPresent) {
-            throw Status.ABORTED
-                    .withDescription("Transaction with txHash: $hash already exists!")
-                    .asRuntimeException()
-        }
-
         val tx = Transaction::class.java.newInstance()
         tx.hash = hash.toLowerCase()
         tx.fromWallet = from.toLowerCase()
@@ -384,34 +350,5 @@ class TransactionServiceImpl(
         transactionRepository.save(tx)
 
         return tx
-    }
-
-    private fun decodeAddress(input: String): String {
-        val refMethod = TypeDecoder::class.java.getDeclaredMethod(
-                "decode",
-                String::class.java,
-                Class::class.java
-        )
-        refMethod.isAccessible = true
-        val address = refMethod.invoke(null, input, Address::class.java) as Address
-        return address.value.toLowerCase()
-    }
-
-    private fun decodeAddressAndAmount(input: String): Pair<String, BigInteger> {
-        val refMethod = TypeDecoder::class.java.getDeclaredMethod(
-                "decode",
-                String::class.java,
-                Int::class.java,
-                Class::class.java
-        )
-        refMethod.isAccessible = true
-
-        val addressInput = input.substring(0, 64)
-        val amountInput = input.substring(64)
-
-        val address = refMethod.invoke(null, addressInput, 0, Address::class.java) as Address
-        val amount = refMethod.invoke(null, amountInput, 0, Uint256::class.java) as Uint256
-
-        return Pair(address.value.toLowerCase(), amount.value)
     }
 }

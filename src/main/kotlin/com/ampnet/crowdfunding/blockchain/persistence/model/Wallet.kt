@@ -9,6 +9,8 @@ import javax.persistence.GenerationType
 import javax.persistence.Column
 import javax.persistence.Enumerated
 import javax.persistence.EnumType
+import javax.persistence.JoinColumn
+import javax.persistence.OneToOne
 
 @Entity
 @Table(name = "wallet")
@@ -17,8 +19,9 @@ data class Wallet(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Int,
 
-    @Column(nullable = false)
-    var hash: String,
+    @OneToOne
+    @JoinColumn(name = "tx_id")
+    var transaction: Transaction,
 
     @Column
     var address: String?,
