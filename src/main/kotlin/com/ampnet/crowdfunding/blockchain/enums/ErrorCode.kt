@@ -13,7 +13,8 @@ enum class ErrorCode(val code: Int) {
     TX_HASH_ALREADY_EXISTS(53),
     CALLER_NOT_REGISTERED(54),
     INVALID_TX_TYPE(55),
-    WALLET_DOES_NOT_EXIST(56);
+    WALLET_DOES_NOT_EXIST(56),
+    INVALID_FUNCTION_CALL(57);
 
     fun withMessage(message: String) = "$code > $message"
 
