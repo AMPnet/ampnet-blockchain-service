@@ -23,7 +23,9 @@ import com.ampnet.crowdfunding.proto.Empty
 import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
+import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
+import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
 import com.ampnet.crowdfunding.proto.GetAllOrganizationsResponse
 import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
 import com.ampnet.crowdfunding.proto.OrganizationExistsResponse
@@ -34,12 +36,18 @@ import com.ampnet.crowdfunding.proto.OrganizationProjectsResponse
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedResponse
 import com.ampnet.crowdfunding.proto.PostVaultTxRequest
+import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentRequest
+import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentResponse
 import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
 import com.ampnet.crowdfunding.proto.ProjectInvestmentCapResponse
+import com.ampnet.crowdfunding.proto.ProjectLockedForInvestmentsRequest
+import com.ampnet.crowdfunding.proto.ProjectLockedForInvestmentsResponse
 import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserResponse
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserResponse
+import com.ampnet.crowdfunding.proto.ProjectTotalInvestmentForUserRequest
+import com.ampnet.crowdfunding.proto.ProjectTotalInvestmentForUserResponse
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import io.github.novacrypto.base58.Base58
 import io.grpc.stub.StreamObserver
@@ -208,7 +216,7 @@ class BlockchainService(
                     request.approve,
                     eurToToken(request.amount)
             )
-            logger.info { "Successfully generateApproveTx" }
+            logger.info { "Successfully generateApproveTx: $tx" }
             responseObserver.onNext(convert(tx, pubKey))
             responseObserver.onCompleted()
         } catch (e: Exception) {
@@ -234,17 +242,25 @@ class BlockchainService(
             responseObserver.onError(e)
         }
     }
-//
-//    override fun generateInvestTx(request: GenerateInvestTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = eurService.generateInvestTx(
-//                request.from,
-//                request.project,
-//                eurToToken(request.amount)
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
+
+    override fun generateInvestTx(request: GenerateInvestTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generateInvestTx: $request" }
+        try {
+            val (wallet, pubKey) = getPublicIdentity(request.fromTxHash)
+            logger.debug { "Address $wallet for hash ${request.fromTxHash}" }
+            logger.debug { "Public key $pubKey for hash ${request.fromTxHash}" }
+            val (project, _) = getPublicIdentity(request.projectTxHash)
+            logger.debug { "Project address $project for hash ${request.projectTxHash}" }
+            val tx = eurService.generateInvestTx(wallet, project, eurToToken(request.amount))
+            logger.info { "Successfully generateInvestTx: $tx" }
+            responseObserver.onNext(convert(tx, pubKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to generateInvestTx" }
+            responseObserver.onError(e)
+        }
+    }
+
     override fun generateTransferTx(request: GenerateTransferTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
     logger.info { "Received request to generateTransferTx: $request" }
         try {
@@ -404,18 +420,29 @@ class BlockchainService(
             responseObserver.onError(e)
         }
     }
-//
-//    override fun generateWithdrawProjectFundsTx(request: GenerateWithdrawProjectFundsTx, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = projectService.generateWithdrawFundsTx(
-//                request.from,
-//                request.project,
-//                request.tokenIssuer,
-//                eurToToken(request.amount)
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
+
+    override fun generateWithdrawProjectFundsTx(request: GenerateWithdrawProjectFundsTx, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generateWithdrawProjectFundsTx: $request" }
+        try {
+            val (from, publicKey) = getPublicIdentity(request.fromTxHash)
+            logger.debug { "Wallet $from and public key $publicKey for hash: ${request.fromTxHash}" }
+            val (project, _) = getPublicIdentity(request.projectTxHash)
+            logger.debug { "Project $project for hash ${request.projectTxHash}" }
+            val tx = projectService.generateWithdrawFundsTx(
+                    from,
+                    project,
+                    request.tokenIssuer,
+                    eurToToken(request.amount)
+            )
+            logger.info { "Successfully generateWithdrawProjectFundsTx: $tx" }
+            responseObserver.onNext(convert(tx, publicKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to getAllOrganizationMembers" }
+            responseObserver.onError(e)
+        }
+    }
+
 //    override fun generateTransferOwnershipTx(request: GenerateTransferOwnershipTx, responseObserver: StreamObserver<RawTxResponse>) {
 //        val tx = projectService.generateTransferOwnershipTx(
 //                request.from,
@@ -494,33 +521,67 @@ class BlockchainService(
             responseObserver.onError(e)
         }
     }
-//
-//    override fun getProjectCurrentTotalInvestment(request: ProjectCurrentTotalInvestmentRequest, responseObserver: StreamObserver<ProjectCurrentTotalInvestmentResponse>) {
-//        responseObserver.onNext(
-//                ProjectCurrentTotalInvestmentResponse.newBuilder()
-//                        .setAmount(tokenToEur(projectService.getCurrentTotalInvestment(request.project)))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun getProjectTotalInvestmentForUser(request: ProjectTotalInvestmentForUserRequest, responseObserver: StreamObserver<ProjectTotalInvestmentForUserResponse>) {
-//        responseObserver.onNext(
-//                ProjectTotalInvestmentForUserResponse.newBuilder()
-//                        .setAmount(tokenToEur(projectService.getTotalInvestmentForUser(request.project, request.user)))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun isProjectLockedForInvestments(request: ProjectLockedForInvestmentsRequest, responseObserver: StreamObserver<ProjectLockedForInvestmentsResponse>) {
-//        responseObserver.onNext(
-//                ProjectLockedForInvestmentsResponse.newBuilder()
-//                        .setLocked(projectService.isLockedForInvestments(request.project))
-//                        .build()
-//        )
-//        responseObserver.onCompleted()
-//    }
+
+    override fun getProjectCurrentTotalInvestment(request: ProjectCurrentTotalInvestmentRequest, responseObserver: StreamObserver<ProjectCurrentTotalInvestmentResponse>) {
+        logger.info { "Received request to getProjectCurrentTotalInvestment: $request" }
+        try {
+            val (projectAddress, _) = getPublicIdentity(request.projectTxHash)
+            logger.debug { "Wallet $projectAddress for project hash: ${request.projectTxHash}" }
+            val currentTotalInvestment = tokenToEur(projectService.getCurrentTotalInvestment(projectAddress))
+            logger.info { "Current total investment = $currentTotalInvestment" }
+            responseObserver.onNext(
+                    ProjectCurrentTotalInvestmentResponse.newBuilder()
+                            .setAmount(currentTotalInvestment)
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to getProjectCurrentTotalInvestment" }
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun getProjectTotalInvestmentForUser(request: ProjectTotalInvestmentForUserRequest, responseObserver: StreamObserver<ProjectTotalInvestmentForUserResponse>) {
+        logger.info { "Received request to getProjectTotalInvestmentForUser: $request" }
+        try {
+            val (projectAddress, _) = getPublicIdentity(request.projectTxHash)
+            logger.debug { "Wallet $projectAddress for project hash: ${request.projectTxHash}" }
+            val (userAddress, _) = getPublicIdentity(request.userTxHash)
+            logger.debug { "Wallet $userAddress for user hash: ${request.userTxHash}" }
+            val investmentForUser = tokenToEur(
+                    projectService.getTotalInvestmentForUser(projectAddress, userAddress)
+            )
+            logger.info { "Investment for user = $investmentForUser" }
+            responseObserver.onNext(
+                    ProjectTotalInvestmentForUserResponse.newBuilder()
+                            .setAmount(investmentForUser)
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to getProjectTotalInvestmentForUser" }
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun isProjectLockedForInvestments(request: ProjectLockedForInvestmentsRequest, responseObserver: StreamObserver<ProjectLockedForInvestmentsResponse>) {
+        logger.info { "Received request to check isProjectLockedForInvestments: $request" }
+        try {
+            val (projectAddress, _) = getPublicIdentity(request.projectTxHash)
+            logger.debug { "Wallet $projectAddress for project hash: ${request.projectTxHash}" }
+            val locked = projectService.isLockedForInvestments(projectAddress)
+            logger.info { "Project locked for investments: $locked" }
+            responseObserver.onNext(
+                    ProjectLockedForInvestmentsResponse.newBuilder()
+                            .setLocked(locked)
+                            .build()
+            )
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to check isProjectLockedForInvestments" }
+            responseObserver.onError(e)
+        }
+    }
 
     override fun postTransaction(request: PostTxRequest, responseObserver: StreamObserver<PostTxResponse>) {
         logger.info { "Received request to postTransaction: $request" }

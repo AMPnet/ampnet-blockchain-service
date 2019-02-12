@@ -184,15 +184,24 @@ class TransactionServiceImpl(
                                 amount = amount
                         )
                     }
+                    TransactionType.INVEST.functionHash -> {
+                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
+                        return saveTransaction(
+                                hash = txHash,
+                                from = walletService.getTxHash(signedTx.from),
+                                to = walletService.getTxHash(address),
+                                input = signedTx.data,
+                                type = TransactionType.INVEST,
+                                amount = amount
+                        )
+                    }
                     else -> {
                         throw Status.INVALID_ARGUMENT
                                 .withDescription(
-                                        """"
-                                    |Only mint(address,uint256), burnFrom(address,uint256),
-                                    |approve(address,uint256) and transfer(address,uint256)
-                                    |functions currently supported!
-                                    """.trimMargin())
-                                .asRuntimeException()
+                                        ErrorCode.INVALID_FUNCTION_CALL.withMessage(
+                                                "Function call not recognized!"
+                                        )
+                                ).asRuntimeException()
                     }
                 }
             }
@@ -246,7 +255,27 @@ class TransactionServiceImpl(
                 }
             }
             ContractType.PROJECT -> {
-                TODO("not implemented")
+                when (functionHash) {
+                    TransactionType.PENDING_PROJ_WITHDRAW.functionHash -> {
+                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
+                        return saveTransaction(
+                                hash = txHash,
+                                from = walletService.getTxHash(signedTx.to),
+                                to = address,
+                                input = signedTx.data,
+                                type = TransactionType.PENDING_PROJ_WITHDRAW,
+                                amount = amount
+                        )
+                    }
+                    else -> {
+                        throw Status.INVALID_ARGUMENT
+                                .withDescription(
+                                        ErrorCode.INVALID_FUNCTION_CALL.withMessage(
+                                            "Invalid Project contract function call!"
+                                        )
+                                ).asRuntimeException()
+                    }
+                }
             }
         }
     }
@@ -297,9 +326,9 @@ class TransactionServiceImpl(
 
     private fun throwIfTxTypeDoesNotMatchActualTx(txData: String, txType: TransactionType) {
         val tx = TransactionDecoder.decode(txData)
-        val functionSignature = tx.data.substring(0, 8).toLowerCase()
-        val actualType = TransactionType.fromFunctionHash(functionSignature)
-        if (actualType != txType) {
+        val actualFunction = tx.data.substring(0, 8).toLowerCase()
+        val providedFunction = txType.functionHash
+        if (actualFunction != providedFunction) {
             throw Status.PERMISSION_DENIED
                     .withDescription(ErrorCode.INVALID_TX_TYPE.withMessage("Signed transaction does not match provided tx type."))
                     .asRuntimeException()

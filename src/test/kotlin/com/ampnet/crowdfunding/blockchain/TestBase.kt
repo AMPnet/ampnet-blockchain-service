@@ -54,6 +54,12 @@ abstract class TestBase {
             address: 0x89451cfe47ec2e68a82b5ea4b06eb711c0f6351f
          */
         val bob = Credentials.create("0x215d6c308a70b5b74081ec71f7d67495b0c3c88bf0ba119b8eeb022cf2c20251")
+
+        /*
+            menmonic: match green raise tomorrow mirror galaxy twist taste hurry vessel hurt harsh
+            address: 0x4cfceb385aaaa34c1a453608d885465eeb205e42
+         */
+        val jane = Credentials.create("0xe57787b6142f659d759fcbe2ecda7e49f105fd61b10f73d980ab1964aef71132")
     }
 
     data class TestProject(
