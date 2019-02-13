@@ -8,7 +8,6 @@ interface ProjectService {
     fun generateWithdrawFundsTx(
         from: String,
         project: String,
-        tokenIssuer: String,
         amount: BigInteger
     ): RawTransaction
 

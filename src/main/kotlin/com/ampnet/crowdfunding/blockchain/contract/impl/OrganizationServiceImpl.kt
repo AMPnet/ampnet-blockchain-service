@@ -1,5 +1,6 @@
 package com.ampnet.crowdfunding.blockchain.contract.impl
 
+import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
 import com.ampnet.crowdfunding.blockchain.contract.OrganizationService
 import org.springframework.stereotype.Service
 import org.web3j.abi.FunctionEncoder
@@ -17,7 +18,10 @@ import org.web3j.protocol.core.methods.request.Transaction
 import java.math.BigInteger
 
 @Service
-class OrganizationServiceImpl(val web3j: Web3j) : OrganizationService {
+class OrganizationServiceImpl(
+    val web3j: Web3j,
+    val properties: ApplicationProperties
+) : OrganizationService {
 
     override fun generateActivateTx(from: String, organization: String): RawTransaction {
         val function = Function(
@@ -38,10 +42,11 @@ class OrganizationServiceImpl(val web3j: Web3j) : OrganizationService {
         )
     }
 
-    override fun generateWithdrawFundsTx(from: String, organization: String, tokenIssuer: String, amount: BigInteger): RawTransaction {
+    override fun generateWithdrawFundsTx(from: String, organization: String, amount: BigInteger): RawTransaction {
+        val issuingAuthority = properties.accounts.issuingAuthorityAddress
         val function = Function(
                 "withdrawFunds",
-                listOf(Address(tokenIssuer), Uint256(amount)),
+                listOf(Address(issuingAuthority), Uint256(amount)),
                 emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)

@@ -215,7 +215,6 @@ class BlockchainService(
             val (address, pubKey) = getPublicIdentity(request.fromTxHash)
             val tx = eurService.generateApproveTx(
                     address,
-                    request.approve,
                     eurToToken(request.amount)
             )
             logger.info { "Successfully generateApproveTx: $tx" }
@@ -310,7 +309,6 @@ class BlockchainService(
             val tx = organizationService.generateWithdrawFundsTx(
                     fromAddress,
                     orgAddress,
-                    request.tokenIssuer,
                     eurToToken(request.amount)
             )
             logger.info { "Successfully generateWithdrawOrganizationFundsTx" }
@@ -433,7 +431,6 @@ class BlockchainService(
             val tx = projectService.generateWithdrawFundsTx(
                     from,
                     project,
-                    request.tokenIssuer,
                     eurToToken(request.amount)
             )
             logger.info { "Successfully generateWithdrawProjectFundsTx: $tx" }
