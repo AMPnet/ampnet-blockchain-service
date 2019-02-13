@@ -20,6 +20,17 @@ class AbiUtils {
             return address.value.toLowerCase()
         }
 
+        fun decodeAmount(input: String): BigInteger {
+            val refMethod = TypeDecoder::class.java.getDeclaredMethod(
+                    "decode",
+                    String::class.java,
+                    Class::class.java
+            )
+            refMethod.isAccessible = true
+            val amount = refMethod.invoke(null, input, Uint256::class.java) as Uint256
+            return amount.value
+        }
+
         fun decodeAddressAndAmount(input: String): Pair<String, BigInteger> {
             val refMethod = TypeDecoder::class.java.getDeclaredMethod(
                     "decode",

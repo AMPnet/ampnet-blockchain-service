@@ -18,8 +18,10 @@ import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
+import com.ampnet.crowdfunding.proto.GenerateCancelInvestmentTx
 import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
+import com.ampnet.crowdfunding.proto.GenerateTransferOwnershipTx
 import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
@@ -536,64 +538,95 @@ class BlockchainServiceTest : TestBase() {
         }
     }
 
-//    @Test
-//    fun userMustBeAbleToCancelInvestment() {
-//        val initialBalance = 100000L
-//        lateinit var organization: String
-//        lateinit var project: String
-//
-//        suppose("Users Bob and Alice exist with initial balances") {
-//            addWallet(accounts.bob.address)
-//            addWallet(accounts.alice.address)
-//            mint(accounts.bob.address, initialBalance)
-//            mint(accounts.alice.address, initialBalance)
-//        }
-//
-//        suppose("Bob creates organization and investment project") {
-//            organization = addAndApproveOrganization(accounts.bob, "Greenpeace")
-//            project = createTestProject(organization, accounts.bob, testProject)
-//        }
-//
-//        verify("Alice can invest and cancel investment") {
-//            val investment = 1000L
-//            invest(project, accounts.alice, investment)
-//            cancelInvestment(project, accounts.alice, investment)
-//            assertThat(getBalance(accounts.alice.address)).isEqualTo(initialBalance)
-//            assertThat(getProjectInvestmentForUser(accounts.alice.address, project)).isZero()
-//        }
-//    }
-//
-//    @Test
-//    fun userMustBeAbleToTransferOwnership() {
-//        val initialBalance = 10000L
-//        val investment = 1000L
-//        lateinit var organization: String
-//        lateinit var project: String
-//
-//        suppose("Users Bob, Alice and Jane exist with initial balances") {
-//            addWallet(accounts.bob.address)
-//            addWallet(accounts.alice.address)
-//            addWallet(accounts.jane.address)
-//            mint(accounts.bob.address, initialBalance)
-//            mint(accounts.alice.address, initialBalance)
-//            mint(accounts.jane.address, initialBalance)
-//        }
-//
-//        suppose("Bob creates organization and investment project") {
-//            organization = addAndApproveOrganization(accounts.bob, "Greenpeace")
-//            project = createTestProject(organization, accounts.bob, testProject)
-//        }
-//
-//        suppose("Alice invested in project while Jane did not") {
-//            invest(project, accounts.alice, investment)
-//        }
-//
-//        verify("Alice can transfer ownership of investment to Jane") {
-//            transferOwnership(project, accounts.alice, accounts.jane.address, investment)
-//            assertThat(getProjectInvestmentForUser(accounts.alice.address, project)).isZero()
-//            assertThat(getProjectInvestmentForUser(accounts.jane.address, project)).isEqualTo(investment)
-//        }
-//    }
+    @Test
+    fun userMustBeAbleToCancelInvestment() {
+        val initialBalance = 100000L
+        val investment = 1000L
+        lateinit var orgTxHash: String
+        lateinit var projTxHash: String
+        lateinit var bobTxHash: String
+        lateinit var aliceTxHash: String
+        suppose("Users Bob and Alice exist with initial balances") {
+            bobTxHash = addWallet(accounts.bob).txHash
+            aliceTxHash = addWallet(accounts.alice).txHash
+            mint(bobTxHash, initialBalance)
+            mint(aliceTxHash, initialBalance)
+        }
+
+        suppose("Bob creates organization and investment project") {
+            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
+            projTxHash = createTestProject(orgTxHash, bobTxHash, accounts.bob, testProject)
+        }
+
+        verify("Alice can invest and cancel investment") {
+            invest(projTxHash, aliceTxHash, accounts.alice, investment)
+            cancelInvestment(projTxHash, aliceTxHash, accounts.alice, investment)
+            assertThat(getBalance(aliceTxHash)).isEqualTo(initialBalance)
+            assertThat(getProjectInvestmentForUser(aliceTxHash, projTxHash)).isZero()
+        }
+
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(9)
+
+            val aliceCancelInvestmentTx = transactions[8]
+            assertTransaction(
+                    aliceCancelInvestmentTx,
+                    expectedFrom = projTxHash,
+                    expectedTo = aliceTxHash,
+                    expectedType = TransactionType.CANCEL_INVESTMENT,
+                    expectedAmount = investment
+            )
+        }
+    }
+
+    @Test
+    fun userMustBeAbleToTransferOwnership() {
+        val initialBalance = 10000L
+        val investment = 1000L
+        lateinit var orgTxHash: String
+        lateinit var projTxHash: String
+        lateinit var bobTxHash: String
+        lateinit var aliceTxHash: String
+        lateinit var janeTxHash: String
+        suppose("Users Bob, Alice and Jane exist with initial balances") {
+            bobTxHash = addWallet(accounts.bob).txHash
+            aliceTxHash = addWallet(accounts.alice).txHash
+            janeTxHash = addWallet(accounts.jane).txHash
+            mint(bobTxHash, initialBalance)
+            mint(aliceTxHash, initialBalance)
+            mint(janeTxHash, initialBalance)
+        }
+
+        suppose("Bob creates organization and investment project") {
+            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
+            projTxHash = createTestProject(orgTxHash, bobTxHash, accounts.bob, testProject)
+        }
+
+        suppose("Alice invested in project while Jane did not") {
+            invest(projTxHash, aliceTxHash, accounts.alice, investment)
+        }
+
+        verify("Alice can transfer ownership of investment to Jane") {
+            transferOwnership(projTxHash, aliceTxHash, accounts.alice, janeTxHash, investment)
+            assertThat(getProjectInvestmentForUser(aliceTxHash, projTxHash)).isZero()
+            assertThat(getProjectInvestmentForUser(janeTxHash, projTxHash)).isEqualTo(investment)
+        }
+
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(11)
+
+            val aliceTransferOwnershipTx = transactions[10]
+            assertTransaction(
+                    aliceTransferOwnershipTx,
+                    expectedFrom = aliceTxHash,
+                    expectedTo = janeTxHash,
+                    expectedType = TransactionType.TRANSFER_OWNERSHIP,
+                    expectedAmount = investment
+            )
+        }
+    }
 
     /** HELPER FUNCTIONS */
 
@@ -886,36 +919,38 @@ class BlockchainServiceTest : TestBase() {
         )
     }
 
-//    private fun transferOwnership(project: String, from: Credentials, to: String, amount: Long) {
-//        val transferTx = grpc.generateTransferOwnershipTx(
-//                GenerateTransferOwnershipTx.newBuilder()
-//                        .setProject(project)
-//                        .setFrom(from.address)
-//                        .setTo(to)
-//                        .setAmount(amount)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(transferTx, from))
-//                        .build()
-//        )
-//    }
-//
-//    private fun cancelInvestment(project: String, from: Credentials, amount: Long) {
-//        val cancelTx = grpc.generateCancelInvestmentTx(
-//                GenerateCancelInvestmentTx.newBuilder()
-//                        .setFrom(from.address)
-//                        .setProject(project)
-//                        .setAmount(amount)
-//                        .build()
-//        )
-//        grpc.postTransaction(
-//                PostTxRequest.newBuilder()
-//                        .setData(sign(cancelTx, from))
-//                        .build()
-//        )
-//    }
+    private fun transferOwnership(projectTxHash: String, fromTxHash: String, from: Credentials, toTxHash: String, amount: Long) {
+        val transferTx = grpc.generateTransferOwnershipTx(
+                GenerateTransferOwnershipTx.newBuilder()
+                        .setProjectTxHash(projectTxHash)
+                        .setFromTxHash(fromTxHash)
+                        .setToTxHash(toTxHash)
+                        .setAmount(amount)
+                        .build()
+        )
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(transferTx, from)))
+                        .setTxType(typeToProto(TransactionType.TRANSFER_OWNERSHIP))
+                        .build()
+        )
+    }
+
+    private fun cancelInvestment(projectTxHash: String, fromTxHash: String, from: Credentials, amount: Long) {
+        val cancelTx = grpc.generateCancelInvestmentTx(
+                GenerateCancelInvestmentTx.newBuilder()
+                        .setFromTxHash(fromTxHash)
+                        .setProjectTxHash(projectTxHash)
+                        .setAmount(amount)
+                        .build()
+        )
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(cancelTx, from)))
+                        .setTxType(typeToProto(TransactionType.CANCEL_INVESTMENT))
+                        .build()
+        )
+    }
 
     // NOTE: - clients are going to handle this logic in production
     private fun sign(tx: RawTxResponse, credentials: Credentials): String {
