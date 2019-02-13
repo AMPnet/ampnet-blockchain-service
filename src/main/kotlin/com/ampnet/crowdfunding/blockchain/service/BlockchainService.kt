@@ -23,7 +23,9 @@ import com.ampnet.crowdfunding.proto.Empty
 import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
+import com.ampnet.crowdfunding.proto.GenerateCancelInvestmentTx
 import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
+import com.ampnet.crowdfunding.proto.GenerateTransferOwnershipTx
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
 import com.ampnet.crowdfunding.proto.GetAllOrganizationsResponse
@@ -364,7 +366,7 @@ class BlockchainService(
     }
 
     override fun isOrganizationVerified(request: OrganizationVerifiedRequest, responseObserver: StreamObserver<OrganizationVerifiedResponse>) {
-        logger.info { "Received request to generateAddOrganizationProjectTx: $request" }
+        logger.info { "Received request isOrganizationVerified: $request" }
         try {
             val (orgAddress, _) = getPublicIdentity(request.organizationTxHash)
             logger.debug { "Wallet $orgAddress for hash: ${request.organizationTxHash}" }
@@ -438,33 +440,56 @@ class BlockchainService(
             responseObserver.onNext(convert(tx, publicKey))
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            logger.error(e) { "Failed to getAllOrganizationMembers" }
+            logger.error(e) { "Failed to generateWithdrawProjectFundsTx" }
             responseObserver.onError(e)
         }
     }
 
-//    override fun generateTransferOwnershipTx(request: GenerateTransferOwnershipTx, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = projectService.generateTransferOwnershipTx(
-//                request.from,
-//                request.project,
-//                request.to,
-//                eurToToken(request.amount)
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
-//    override fun generateCancelInvestmentTx(request: GenerateCancelInvestmentTx, responseObserver: StreamObserver<RawTxResponse>) {
-//        val tx = projectService.generateCancelInvestmentTx(
-//                request.from,
-//                request.project,
-//                eurToToken(request.amount)
-//        )
-//        responseObserver.onNext(convert(tx))
-//        responseObserver.onCompleted()
-//    }
-//
-//
+    override fun generateTransferOwnershipTx(request: GenerateTransferOwnershipTx, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generateTransferOwnershipTx: $request" }
+        try {
+            val (from, publicKey) = getPublicIdentity(request.fromTxHash)
+            logger.debug { "from-wallet: $from for hash: ${request.fromTxHash}" }
+            val (to, _) = getPublicIdentity(request.toTxHash)
+            logger.debug { "to-wallet: $to for hash ${request.toTxHash}" }
+            val (project, _) = getPublicIdentity(request.projectTxHash)
+            logger.debug { "Project $project for hash ${request.projectTxHash}" }
+            val tx = projectService.generateTransferOwnershipTx(
+                    from,
+                    project,
+                    to,
+                    eurToToken(request.amount)
+            )
+            logger.info { "Successfully generateTransferOwnershipTx: $tx" }
+            responseObserver.onNext(convert(tx, publicKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to generateTransferOwnershipTx" }
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun generateCancelInvestmentTx(request: GenerateCancelInvestmentTx, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generateCancelInvestmentTx: $request" }
+        try {
+            val (from, publicKey) = getPublicIdentity(request.fromTxHash)
+            logger.debug { "from-wallet: $from for hash: ${request.fromTxHash}" }
+            val (project, _) = getPublicIdentity(request.projectTxHash)
+            logger.debug { "Project $project for hash ${request.projectTxHash}" }
+            val tx = projectService.generateCancelInvestmentTx(
+                    from,
+                    project,
+                    eurToToken(request.amount)
+            )
+            logger.info { "Successfully generateCancelInvestmentTx: %$tx" }
+            responseObserver.onNext(convert(tx, publicKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to generateCancelInvestmentTx" }
+            responseObserver.onError(e)
+        }
+    }
+
     override fun getProjectMaxInvestmentPerUser(request: ProjectMaxInvestmentPerUserRequest, responseObserver: StreamObserver<ProjectMaxInvestmentPerUserResponse>) {
         logger.info { "Received request to getProjectMaxInvestmentPerUser: $request" }
         try {

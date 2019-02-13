@@ -273,6 +273,28 @@ class TransactionServiceImpl(
                                 amount = amount
                         )
                     }
+                    TransactionType.TRANSFER_OWNERSHIP.functionHash -> {
+                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
+                        return saveTransaction(
+                                hash = txHash,
+                                from = walletService.getTxHash(signedTx.from),
+                                to = walletService.getTxHash(address),
+                                input = signedTx.data,
+                                type = TransactionType.TRANSFER_OWNERSHIP,
+                                amount = amount
+                        )
+                    }
+                    TransactionType.CANCEL_INVESTMENT.functionHash -> {
+                        val amount = AbiUtils.decodeAmount(inputData)
+                        return saveTransaction(
+                                hash = txHash,
+                                from = walletService.getTxHash(signedTx.to),
+                                to = walletService.getTxHash(signedTx.from),
+                                input = signedTx.data,
+                                type = TransactionType.CANCEL_INVESTMENT,
+                                amount = amount
+                        )
+                    }
                     else -> {
                         throw Status.INVALID_ARGUMENT
                                 .withDescription(
