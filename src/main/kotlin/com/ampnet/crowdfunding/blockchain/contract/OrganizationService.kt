@@ -7,7 +7,7 @@ interface OrganizationService {
 
     fun generateActivateTx(from: String, organization: String): RawTransaction
 
-    fun generateWithdrawFundsTx(from: String, organization: String, tokenIssuer: String, amount: BigInteger): RawTransaction
+    fun generateWithdrawFundsTx(from: String, organization: String, amount: BigInteger): RawTransaction
 
     fun generateAddMemberTx(from: String, organization: String, member: String): RawTransaction
 

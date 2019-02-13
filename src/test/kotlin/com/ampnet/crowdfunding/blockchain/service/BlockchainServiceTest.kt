@@ -629,7 +629,6 @@ class BlockchainServiceTest : TestBase() {
                 GenerateApproveTxRequest.newBuilder()
                         .setFromTxHash(fromTxHash)
                         .setAmount(amount)
-                        .setApprove(accounts.eurOwner.address)
                         .build()
         )
         grpc.postVaultTransaction(
@@ -817,7 +816,6 @@ class BlockchainServiceTest : TestBase() {
                         .setFromTxHash(adminTxHash)
                         .setOrganizationTxHash(orgTxHash)
                         .setAmount(amount)
-                        .setTokenIssuer(accounts.eurOwner.address)
                         .build()
         )
         grpc.postVaultTransaction(
@@ -875,7 +873,6 @@ class BlockchainServiceTest : TestBase() {
                         .setFromTxHash(adminTxHash)
                         .setAmount(amount)
                         .setProjectTxHash(projectTxHash)
-                        .setTokenIssuer(accounts.eurOwner.address)
                         .build()
         )
         grpc.postVaultTransaction(

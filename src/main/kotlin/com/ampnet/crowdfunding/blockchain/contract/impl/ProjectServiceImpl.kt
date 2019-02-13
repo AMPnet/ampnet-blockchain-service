@@ -1,5 +1,6 @@
 package com.ampnet.crowdfunding.blockchain.contract.impl
 
+import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
 import com.ampnet.crowdfunding.blockchain.contract.ProjectService
 import org.springframework.stereotype.Service
 import org.web3j.abi.FunctionEncoder
@@ -16,14 +17,17 @@ import org.web3j.protocol.core.methods.request.Transaction
 import java.math.BigInteger
 
 @Service
-class ProjectServiceImpl(val web3j: Web3j) : ProjectService {
+class ProjectServiceImpl(
+    val web3j: Web3j,
+    val properties: ApplicationProperties
+) : ProjectService {
 
     override fun generateWithdrawFundsTx(
         from: String,
         project: String,
-        tokenIssuer: String,
         amount: BigInteger
     ): RawTransaction {
+        val tokenIssuer = properties.accounts.issuingAuthorityAddress
         val function = Function(
                 "withdrawFunds",
                 listOf(Address(tokenIssuer), Uint256(amount)),

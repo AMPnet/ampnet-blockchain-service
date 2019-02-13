@@ -81,10 +81,11 @@ class EurServiceImpl(
         )
     }
 
-    override fun generateApproveTx(from: String, approve: String, amount: BigInteger): RawTransaction {
+    override fun generateApproveTx(from: String, amount: BigInteger): RawTransaction {
+        val issuingAuthority = properties.accounts.issuingAuthorityAddress
         val function = Function(
                 "approve",
-                listOf(Address(approve), Uint256(amount)),
+                listOf(Address(issuingAuthority), Uint256(amount)),
                 emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)
