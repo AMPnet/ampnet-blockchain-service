@@ -21,7 +21,7 @@ interface OrganizationService {
 
     fun isVerified(organization: String): Boolean
 
-    fun getAllProjects(organization: String): List<String>
+    fun getProjects(organization: String): List<String>
 
     fun getMembers(organization: String): List<String>
 }

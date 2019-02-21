@@ -13,7 +13,5 @@ interface EurService {
 
     fun balanceOf(address: String): BigInteger
 
-    fun generateInvestTx(from: String, project: String, amount: BigInteger): RawTransaction
-
     fun generateTransferTx(from: String, to: String, amount: BigInteger): RawTransaction
 }

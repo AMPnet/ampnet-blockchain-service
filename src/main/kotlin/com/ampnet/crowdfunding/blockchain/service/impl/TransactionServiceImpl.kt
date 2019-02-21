@@ -187,17 +187,6 @@ class TransactionServiceImpl(
                                 amount = amount
                         )
                     }
-                    TransactionType.INVEST.functionHash -> {
-                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
-                        return saveTransaction(
-                                hash = txHash,
-                                from = walletService.getTxHash(signedTx.from),
-                                to = walletService.getTxHash(address),
-                                input = signedTx.data,
-                                type = TransactionType.INVEST,
-                                amount = amount
-                        )
-                    }
                     else -> {
                         throw Status.INVALID_ARGUMENT
                                 .withDescription(
@@ -273,26 +262,14 @@ class TransactionServiceImpl(
                                 amount = amount
                         )
                     }
-                    TransactionType.TRANSFER_OWNERSHIP.functionHash -> {
-                        val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
+                    TransactionType.INVEST.functionHash -> {
                         return saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.from),
-                                to = walletService.getTxHash(address),
+                                to = walletService.getTxHash(signedTx.to),
                                 input = signedTx.data,
-                                type = TransactionType.TRANSFER_OWNERSHIP,
-                                amount = amount
-                        )
-                    }
-                    TransactionType.CANCEL_INVESTMENT.functionHash -> {
-                        val amount = AbiUtils.decodeAmount(inputData)
-                        return saveTransaction(
-                                hash = txHash,
-                                from = walletService.getTxHash(signedTx.to),
-                                to = walletService.getTxHash(signedTx.from),
-                                input = signedTx.data,
-                                type = TransactionType.CANCEL_INVESTMENT,
-                                amount = amount
+                                type = TransactionType.INVEST
+                                // TODO("parse amount somehow")
                         )
                     }
                     else -> {
@@ -312,7 +289,7 @@ class TransactionServiceImpl(
         val tx = TransactionDecoder.decode(txData) as SignedRawTransaction
         val toAddress = tx.to.toLowerCase()
         return when (toAddress) {
-            properties.contracts.ampnetAddress.toLowerCase() -> ContractType.AMPNET
+            properties.contracts.coopAddress.toLowerCase() -> ContractType.AMPNET
             properties.contracts.eurAddress.toLowerCase() -> ContractType.EUR
             else -> {
                 val wallet = walletService.getByAddress(toAddress)
@@ -335,7 +312,7 @@ class TransactionServiceImpl(
 
         // Check if caller is either AMPnet or Issuing Authority
         val issuingAuthority = properties.accounts.issuingAuthorityAddress.toLowerCase()
-        val ampnetAuthority = Credentials.create(properties.accounts.ampnetPrivateKey).address.toLowerCase()
+        val ampnetAuthority = Credentials.create(properties.accounts.coopPrivateKey).address.toLowerCase()
         if (fromAddress == issuingAuthority || fromAddress == ampnetAuthority) {
             return
         }

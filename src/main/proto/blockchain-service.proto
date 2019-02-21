@@ -24,7 +24,7 @@ enum TransactionType {
     CANCEL_INVESTMENT = 13;
 }
 
-//////// AMPnet contract messages ///////
+//////// Cooperative contract messages ///////
 
 message AddWalletRequest {
     string publicKey = 1;
@@ -43,7 +43,7 @@ message OrganizationExistsResponse {
     bool exists = 1;
 }
 
-message GetAllOrganizationsResponse {
+message GetOrganizationsResponse {
     repeated string organizations = 1;
 }
 
@@ -157,19 +157,6 @@ message GenerateWithdrawProjectFundsTx {
     uint64 amount = 3;
 }
 
-message GenerateTransferOwnershipTx {
-    string fromTxHash = 1;
-    string projectTxHash = 2;
-    string toTxHash = 3;
-    uint64 amount = 4;
-}
-
-message GenerateCancelInvestmentTx {
-    string fromTxHash = 1;
-    string projectTxHash = 2;
-    uint64 amount = 3;
-}
-
 message ProjectMaxInvestmentPerUserRequest {
     string projectTxHash = 1;
 }
@@ -211,12 +198,12 @@ message ProjectTotalInvestmentForUserResponse {
     uint64 amount = 1;
 }
 
-message ProjectLockedForInvestmentsRequest {
+message ProjectCompletelyFundedRequest {
     string projectTxHash = 1;
 }
 
-message ProjectLockedForInvestmentsResponse {
-    bool locked = 1;
+message ProjectCompletelyFundedResponse {
+    bool funded = 1;
 }
 
 
@@ -258,11 +245,11 @@ message Empty {
 
 service BlockchainService {
 
-    // AMPnet
+    // Cooperative
 
     rpc addWallet(AddWalletRequest) returns (PostTxResponse);
     rpc generateAddOrganizationTx(GenerateAddOrganizationTxRequest) returns (RawTxResponse);
-    rpc getAllOrganizations(Empty) returns (GetAllOrganizationsResponse);
+    rpc getOrganizations(Empty) returns (GetOrganizationsResponse);
     rpc isWalletActive(WalletActiveRequest) returns (WalletActiveResponse);
     rpc organizationExists(OrganizationExistsRequest) returns (OrganizationExistsResponse);
 
@@ -291,14 +278,12 @@ service BlockchainService {
     // Project
 
     rpc generateWithdrawProjectFundsTx(GenerateWithdrawProjectFundsTx) returns (RawTxResponse);
-    rpc generateTransferOwnershipTx(GenerateTransferOwnershipTx) returns (RawTxResponse);
-    rpc generateCancelInvestmentTx(GenerateCancelInvestmentTx) returns (RawTxResponse);
     rpc getProjectMaxInvestmentPerUser(ProjectMaxInvestmentPerUserRequest) returns (ProjectMaxInvestmentPerUserResponse);
     rpc getProjectMinInvestmentPerUser(ProjectMinInvestmentPerUserRequest) returns (ProjectMinInvestmentPerUserResponse);
     rpc getProjectInvestmentCap(ProjectInvestmentCapRequest) returns (ProjectInvestmentCapResponse);
     rpc getProjectCurrentTotalInvestment(ProjectCurrentTotalInvestmentRequest) returns (ProjectCurrentTotalInvestmentResponse);
     rpc getProjectTotalInvestmentForUser(ProjectTotalInvestmentForUserRequest) returns (ProjectTotalInvestmentForUserResponse);
-    rpc isProjectLockedForInvestments(ProjectLockedForInvestmentsRequest) returns (ProjectLockedForInvestmentsResponse);
+    rpc isProjectCompletelyFunded(ProjectCompletelyFundedRequest) returns (ProjectCompletelyFundedResponse);
 
 
     // Transactions

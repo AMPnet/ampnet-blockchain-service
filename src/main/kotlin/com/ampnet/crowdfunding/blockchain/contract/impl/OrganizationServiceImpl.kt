@@ -132,9 +132,9 @@ class OrganizationServiceImpl(
         return returnValues[0].value as Boolean
     }
 
-    override fun getAllProjects(organization: String): List<String> {
+    override fun getProjects(organization: String): List<String> {
         val function = Function(
-                "getAllProjects",
+                "getProjects",
                 emptyList(),
                 listOf(object : TypeReference<DynamicArray<Address>>() {})
         )

@@ -1,7 +1,7 @@
 package com.ampnet.crowdfunding.blockchain.service
 
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
-import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
+import com.ampnet.crowdfunding.blockchain.contract.CoopService
 import com.ampnet.crowdfunding.blockchain.contract.EurService
 import com.ampnet.crowdfunding.blockchain.contract.OrganizationService
 import com.ampnet.crowdfunding.blockchain.contract.ProjectService
@@ -23,12 +23,10 @@ import com.ampnet.crowdfunding.proto.Empty
 import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
-import com.ampnet.crowdfunding.proto.GenerateCancelInvestmentTx
 import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
-import com.ampnet.crowdfunding.proto.GenerateTransferOwnershipTx
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
-import com.ampnet.crowdfunding.proto.GetAllOrganizationsResponse
+import com.ampnet.crowdfunding.proto.GetOrganizationsResponse
 import com.ampnet.crowdfunding.proto.OrganizationExistsRequest
 import com.ampnet.crowdfunding.proto.OrganizationExistsResponse
 import com.ampnet.crowdfunding.proto.OrganizationMembersRequest
@@ -38,12 +36,12 @@ import com.ampnet.crowdfunding.proto.OrganizationProjectsResponse
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.OrganizationVerifiedResponse
 import com.ampnet.crowdfunding.proto.PostVaultTxRequest
+import com.ampnet.crowdfunding.proto.ProjectCompletelyFundedRequest
+import com.ampnet.crowdfunding.proto.ProjectCompletelyFundedResponse
 import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentRequest
 import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentResponse
 import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
 import com.ampnet.crowdfunding.proto.ProjectInvestmentCapResponse
-import com.ampnet.crowdfunding.proto.ProjectLockedForInvestmentsRequest
-import com.ampnet.crowdfunding.proto.ProjectLockedForInvestmentsResponse
 import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserResponse
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
@@ -66,13 +64,13 @@ import java.math.BigInteger
 
 @GRpcService
 class BlockchainService(
-    val transactionService: TransactionService,
-    val walletService: WalletService,
-    val ampnetService: AmpnetService,
-    val eurService: EurService,
-    val organizationService: OrganizationService,
-    val projectService: ProjectService,
-    val properties: ApplicationProperties
+        val transactionService: TransactionService,
+        val walletService: WalletService,
+        val coopService: CoopService,
+        val eurService: EurService,
+        val organizationService: OrganizationService,
+        val projectService: ProjectService,
+        val properties: ApplicationProperties
 ) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
     companion object : KLogging()
@@ -82,8 +80,8 @@ class BlockchainService(
     override fun addWallet(request: AddWalletRequest, responseObserver: StreamObserver<PostTxResponse>) {
         logger.info { "Received request to addWallet: $request" }
         try {
-            val credentials = Credentials.create(properties.accounts.ampnetPrivateKey)
-            val tx = ampnetService.generateAddWalletTx(
+            val credentials = Credentials.create(properties.accounts.coopPrivateKey)
+            val tx = coopService.generateAddWalletTx(
                     credentials.address,
                     request.address
             )
@@ -106,7 +104,7 @@ class BlockchainService(
         try {
             val (address, _) = getPublicIdentity(request.walletTxHash)
             logger.info { "Address $address for hash: ${request.walletTxHash}" }
-            val isWalletActive = ampnetService.isWalletActive(address)
+            val isWalletActive = coopService.isWalletActive(address)
             logger.info { "Wallet $address is active: $isWalletActive" }
             responseObserver.onNext(
                     WalletActiveResponse.newBuilder()
@@ -125,7 +123,7 @@ class BlockchainService(
         try {
             val (address, pubKey) = getPublicIdentity(request.fromTxHash)
             logger.debug { "Address $address for hash: ${request.fromTxHash}" }
-            val tx = ampnetService.generateAddOrganizationTx(address)
+            val tx = coopService.generateAddOrganizationTx(address)
             logger.info { "Successfully generateAddOrganization" }
             responseObserver.onNext(convert(tx, pubKey))
             responseObserver.onCompleted()
@@ -135,19 +133,19 @@ class BlockchainService(
         }
     }
 
-    override fun getAllOrganizations(request: Empty, responseObserver: StreamObserver<GetAllOrganizationsResponse>) {
-        logger.info { "Received request to getAllOrganizations" }
+    override fun getOrganizations(request: Empty, responseObserver: StreamObserver<GetOrganizationsResponse>) {
+        logger.info { "Received request to getOrganizations" }
         try {
-            val organizations = ampnetService.getAllOrganizations()
-            logger.info { "Successfully getAllOrganizations: $organizations" }
+            val organizations = coopService.getOrganizations()
+            logger.info { "Successfully getOrganizations: $organizations" }
             responseObserver.onNext(
-                    GetAllOrganizationsResponse.newBuilder()
+                    GetOrganizationsResponse.newBuilder()
                             .addAllOrganizations(organizations)
                             .build()
             )
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            logger.error(e) { "Failed to getAllOrganizations" }
+            logger.error(e) { "Failed to getOrganizations" }
             responseObserver.onError(e)
         }
     }
@@ -157,7 +155,7 @@ class BlockchainService(
         try {
             val (address, _) = getPublicIdentity(request.organizationTxHash)
             logger.debug { "Address $address for hash: ${request.organizationTxHash}" }
-            val organizationExists = ampnetService.organizationExists(address)
+            val organizationExists = coopService.isOrganizationActive(address)
             logger.info { "Organization with wallet: $address - exists: $organizationExists" }
             responseObserver.onNext(
                     OrganizationExistsResponse.newBuilder()
@@ -166,7 +164,7 @@ class BlockchainService(
             )
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            logger.error(e) { "Failed to organizationExists" }
+            logger.error(e) { "Failed to check if organizationExists" }
             responseObserver.onError(e)
         }
     }
@@ -252,7 +250,7 @@ class BlockchainService(
             logger.debug { "Public key $pubKey for hash ${request.fromTxHash}" }
             val (project, _) = getPublicIdentity(request.projectTxHash)
             logger.debug { "Project address $project for hash ${request.projectTxHash}" }
-            val tx = eurService.generateInvestTx(wallet, project, eurToToken(request.amount))
+            val tx = projectService.generateInvestTx(wallet, project)
             logger.info { "Successfully generateInvestTx: $tx" }
             responseObserver.onNext(convert(tx, pubKey))
             responseObserver.onCompleted()
@@ -284,7 +282,7 @@ class BlockchainService(
     override fun activateOrganization(request: ActivateOrganizationRequest, responseObserver: StreamObserver<PostTxResponse>) {
         logger.info { "Received request to activateOrganization: $request" }
         try {
-            val credentials = Credentials.create(properties.accounts.ampnetPrivateKey)
+            val credentials = Credentials.create(properties.accounts.coopPrivateKey)
             val (address, _) = getPublicIdentity(request.organizationTxHash)
             logger.debug { "Wallet $address for hash: ${request.organizationTxHash}" }
             val activateOrgTx = organizationService.generateActivateTx(credentials.address, address)
@@ -388,7 +386,7 @@ class BlockchainService(
         try {
             val (orgAddress, _) = getPublicIdentity(request.organizationTxHash)
             logger.debug { "Wallet $orgAddress for hash: ${request.organizationTxHash}" }
-            val projects = organizationService.getAllProjects(orgAddress)
+            val projects = organizationService.getProjects(orgAddress)
             logger.info { "All projects: $projects" }
             responseObserver.onNext(
                     OrganizationProjectsResponse.newBuilder()
@@ -428,7 +426,7 @@ class BlockchainService(
             logger.debug { "Wallet $from and public key $publicKey for hash: ${request.fromTxHash}" }
             val (project, _) = getPublicIdentity(request.projectTxHash)
             logger.debug { "Project $project for hash ${request.projectTxHash}" }
-            val tx = projectService.generateWithdrawFundsTx(
+            val tx = projectService.generateWithdrawTx(
                     from,
                     project,
                     eurToToken(request.amount)
@@ -438,51 +436,6 @@ class BlockchainService(
             responseObserver.onCompleted()
         } catch (e: Exception) {
             logger.error(e) { "Failed to generateWithdrawProjectFundsTx" }
-            responseObserver.onError(e)
-        }
-    }
-
-    override fun generateTransferOwnershipTx(request: GenerateTransferOwnershipTx, responseObserver: StreamObserver<RawTxResponse>) {
-        logger.info { "Received request to generateTransferOwnershipTx: $request" }
-        try {
-            val (from, publicKey) = getPublicIdentity(request.fromTxHash)
-            logger.debug { "from-wallet: $from for hash: ${request.fromTxHash}" }
-            val (to, _) = getPublicIdentity(request.toTxHash)
-            logger.debug { "to-wallet: $to for hash ${request.toTxHash}" }
-            val (project, _) = getPublicIdentity(request.projectTxHash)
-            logger.debug { "Project $project for hash ${request.projectTxHash}" }
-            val tx = projectService.generateTransferOwnershipTx(
-                    from,
-                    project,
-                    to,
-                    eurToToken(request.amount)
-            )
-            logger.info { "Successfully generateTransferOwnershipTx: $tx" }
-            responseObserver.onNext(convert(tx, publicKey))
-            responseObserver.onCompleted()
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to generateTransferOwnershipTx" }
-            responseObserver.onError(e)
-        }
-    }
-
-    override fun generateCancelInvestmentTx(request: GenerateCancelInvestmentTx, responseObserver: StreamObserver<RawTxResponse>) {
-        logger.info { "Received request to generateCancelInvestmentTx: $request" }
-        try {
-            val (from, publicKey) = getPublicIdentity(request.fromTxHash)
-            logger.debug { "from-wallet: $from for hash: ${request.fromTxHash}" }
-            val (project, _) = getPublicIdentity(request.projectTxHash)
-            logger.debug { "Project $project for hash ${request.projectTxHash}" }
-            val tx = projectService.generateCancelInvestmentTx(
-                    from,
-                    project,
-                    eurToToken(request.amount)
-            )
-            logger.info { "Successfully generateCancelInvestmentTx: %$tx" }
-            responseObserver.onNext(convert(tx, publicKey))
-            responseObserver.onCompleted()
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to generateCancelInvestmentTx" }
             responseObserver.onError(e)
         }
     }
@@ -586,21 +539,21 @@ class BlockchainService(
         }
     }
 
-    override fun isProjectLockedForInvestments(request: ProjectLockedForInvestmentsRequest, responseObserver: StreamObserver<ProjectLockedForInvestmentsResponse>) {
-        logger.info { "Received request to check isProjectLockedForInvestments: $request" }
+    override fun isProjectCompletelyFunded(request: ProjectCompletelyFundedRequest, responseObserver: StreamObserver<ProjectCompletelyFundedResponse>) {
+        logger.info { "Received request to check isProjectCompletelyFunded: $request" }
         try {
             val (projectAddress, _) = getPublicIdentity(request.projectTxHash)
             logger.debug { "Wallet $projectAddress for project hash: ${request.projectTxHash}" }
-            val locked = projectService.isLockedForInvestments(projectAddress)
-            logger.info { "Project locked for investments: $locked" }
+            val completelyFunded = projectService.isCompletelyFunded(projectAddress)
+            logger.info { "Project completely funded: $completelyFunded" }
             responseObserver.onNext(
-                    ProjectLockedForInvestmentsResponse.newBuilder()
-                            .setLocked(locked)
+                    ProjectCompletelyFundedResponse.newBuilder()
+                            .setFunded(completelyFunded)
                             .build()
             )
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            logger.error(e) { "Failed to check isProjectLockedForInvestments" }
+            logger.error(e) { "Failed to check isProjectCompletelyFunded" }
             responseObserver.onError(e)
         }
     }

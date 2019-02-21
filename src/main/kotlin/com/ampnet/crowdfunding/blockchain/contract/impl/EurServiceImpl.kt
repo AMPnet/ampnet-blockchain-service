@@ -101,25 +101,6 @@ class EurServiceImpl(
         )
     }
 
-    override fun generateInvestTx(from: String, project: String, amount: BigInteger): RawTransaction {
-        val function = Function(
-                "invest",
-                listOf(Address(project), Uint256(amount)),
-                emptyList()
-        )
-        val encodedFunction = FunctionEncoder.encode(function)
-        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
-        val gasPriceResponse = web3j.ethGasPrice().send()
-
-        return RawTransaction.createTransaction(
-                txCountResponse.transactionCount,
-                gasPriceResponse.gasPrice,
-                BigInteger.valueOf(1000000),
-                properties.contracts.eurAddress,
-                encodedFunction
-        )
-    }
-
     override fun generateTransferTx(from: String, to: String, amount: BigInteger): RawTransaction {
         val function = Function(
                 "transfer",

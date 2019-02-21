@@ -18,10 +18,8 @@ import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
-import com.ampnet.crowdfunding.proto.GenerateCancelInvestmentTx
 import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
-import com.ampnet.crowdfunding.proto.GenerateTransferOwnershipTx
 import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
@@ -32,9 +30,9 @@ import com.ampnet.crowdfunding.proto.OrganizationVerifiedRequest
 import com.ampnet.crowdfunding.proto.PostTxRequest
 import com.ampnet.crowdfunding.proto.PostTxResponse
 import com.ampnet.crowdfunding.proto.PostVaultTxRequest
+import com.ampnet.crowdfunding.proto.ProjectCompletelyFundedRequest
 import com.ampnet.crowdfunding.proto.ProjectCurrentTotalInvestmentRequest
 import com.ampnet.crowdfunding.proto.ProjectInvestmentCapRequest
-import com.ampnet.crowdfunding.proto.ProjectLockedForInvestmentsRequest
 import com.ampnet.crowdfunding.proto.ProjectMaxInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectTotalInvestmentForUserRequest
@@ -78,7 +76,7 @@ class BlockchainServiceTest : TestBase() {
             val tx = transactionsResponse.first()
             assertTransaction(
                     tx,
-                    expectedFrom = accounts.ampnetOwner.address,
+                    expectedFrom = accounts.coopOwner.address,
                     expectedTo = txResponse.txHash,
                     expectedType = TransactionType.WALLET_CREATE
             )
@@ -218,7 +216,7 @@ class BlockchainServiceTest : TestBase() {
         }
         verify("Bob can create organization") {
             orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
-            assertThat(getAllOrganizations()).hasSize(1)
+            assertThat(getOrganizations()).hasSize(1)
             assertThat(organizationExists(orgTxHash))
             assertThat(organizationActive(orgTxHash))
         }
@@ -237,7 +235,7 @@ class BlockchainServiceTest : TestBase() {
             val orgActivateTx = transactions[2]
             assertTransaction(
                     orgActivateTx,
-                    expectedFrom = accounts.ampnetOwner.address,
+                    expectedFrom = accounts.coopOwner.address,
                     expectedTo = orgTxHash,
                     expectedType = TransactionType.ORG_ACTIVATE
             )
@@ -448,7 +446,7 @@ class BlockchainServiceTest : TestBase() {
 
         verify("Alice and Jane can invest in project and reach cap") {
             assertThat(getProjectTotalInvestment(projTxHash)).isZero()
-            assertThat(isProjectLockedForInvestments(projTxHash)).isFalse()
+            assertThat(isProjectCompletelyFunded(projTxHash)).isFalse()
 
             val investment = testProject.invesmentCap / 2
 
@@ -462,7 +460,7 @@ class BlockchainServiceTest : TestBase() {
             assertThat(getProjectInvestmentForUser(janeTxHash, projTxHash)).isEqualTo(investment)
 
             assertThat(getProjectTotalInvestment(projTxHash)).isEqualTo(testProject.invesmentCap)
-            assertThat(isProjectLockedForInvestments(projTxHash)).isTrue()
+            assertThat(isProjectCompletelyFunded(projTxHash)).isTrue()
         }
 
         verify("Organization admin can withdraw funds from project") {
@@ -535,96 +533,6 @@ class BlockchainServiceTest : TestBase() {
             }
             val errorCode = ErrorCode.fromMessage(e.status.description.orEmpty())
             assertThat(errorCode).isEqualTo(ErrorCode.INVALID_TX_TYPE.code)
-        }
-    }
-
-    @Test
-    fun userMustBeAbleToCancelInvestment() {
-        val initialBalance = 100000L
-        val investment = 1000L
-        lateinit var orgTxHash: String
-        lateinit var projTxHash: String
-        lateinit var bobTxHash: String
-        lateinit var aliceTxHash: String
-        suppose("Users Bob and Alice exist with initial balances") {
-            bobTxHash = addWallet(accounts.bob).txHash
-            aliceTxHash = addWallet(accounts.alice).txHash
-            mint(bobTxHash, initialBalance)
-            mint(aliceTxHash, initialBalance)
-        }
-
-        suppose("Bob creates organization and investment project") {
-            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
-            projTxHash = createTestProject(orgTxHash, bobTxHash, accounts.bob, testProject)
-        }
-
-        verify("Alice can invest and cancel investment") {
-            invest(projTxHash, aliceTxHash, accounts.alice, investment)
-            cancelInvestment(projTxHash, aliceTxHash, accounts.alice, investment)
-            assertThat(getBalance(aliceTxHash)).isEqualTo(initialBalance)
-            assertThat(getProjectInvestmentForUser(aliceTxHash, projTxHash)).isZero()
-        }
-
-        verify("All transactions are stored in database") {
-            val transactions = transactionRepository.findAll()
-            assertThat(transactions).hasSize(9)
-
-            val aliceCancelInvestmentTx = transactions[8]
-            assertTransaction(
-                    aliceCancelInvestmentTx,
-                    expectedFrom = projTxHash,
-                    expectedTo = aliceTxHash,
-                    expectedType = TransactionType.CANCEL_INVESTMENT,
-                    expectedAmount = investment
-            )
-        }
-    }
-
-    @Test
-    fun userMustBeAbleToTransferOwnership() {
-        val initialBalance = 10000L
-        val investment = 1000L
-        lateinit var orgTxHash: String
-        lateinit var projTxHash: String
-        lateinit var bobTxHash: String
-        lateinit var aliceTxHash: String
-        lateinit var janeTxHash: String
-        suppose("Users Bob, Alice and Jane exist with initial balances") {
-            bobTxHash = addWallet(accounts.bob).txHash
-            aliceTxHash = addWallet(accounts.alice).txHash
-            janeTxHash = addWallet(accounts.jane).txHash
-            mint(bobTxHash, initialBalance)
-            mint(aliceTxHash, initialBalance)
-            mint(janeTxHash, initialBalance)
-        }
-
-        suppose("Bob creates organization and investment project") {
-            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
-            projTxHash = createTestProject(orgTxHash, bobTxHash, accounts.bob, testProject)
-        }
-
-        suppose("Alice invested in project while Jane did not") {
-            invest(projTxHash, aliceTxHash, accounts.alice, investment)
-        }
-
-        verify("Alice can transfer ownership of investment to Jane") {
-            transferOwnership(projTxHash, aliceTxHash, accounts.alice, janeTxHash, investment)
-            assertThat(getProjectInvestmentForUser(aliceTxHash, projTxHash)).isZero()
-            assertThat(getProjectInvestmentForUser(janeTxHash, projTxHash)).isEqualTo(investment)
-        }
-
-        verify("All transactions are stored in database") {
-            val transactions = transactionRepository.findAll()
-            assertThat(transactions).hasSize(11)
-
-            val aliceTransferOwnershipTx = transactions[10]
-            assertTransaction(
-                    aliceTransferOwnershipTx,
-                    expectedFrom = aliceTxHash,
-                    expectedTo = janeTxHash,
-                    expectedType = TransactionType.TRANSFER_OWNERSHIP,
-                    expectedAmount = investment
-            )
         }
     }
 
@@ -764,8 +672,8 @@ class BlockchainServiceTest : TestBase() {
         ).balance
     }
 
-    private fun getAllOrganizations(): List<String> {
-        return grpc.getAllOrganizations(
+    private fun getOrganizations(): List<String> {
+        return grpc.getOrganizations(
                 Empty.getDefaultInstance()
         ).organizationsList
     }
@@ -860,6 +768,7 @@ class BlockchainServiceTest : TestBase() {
     }
 
     private fun invest(projectTxHash: String, investorTxHash: String, investor: Credentials, amount: Long) {
+        // TODO("adapt invest helper function for new flow (approve+invest)")
         val investTx = grpc.generateInvestTx(
                 GenerateInvestTxRequest.newBuilder()
                         .setFromTxHash(investorTxHash)
@@ -892,12 +801,12 @@ class BlockchainServiceTest : TestBase() {
         ).amount
     }
 
-    private fun isProjectLockedForInvestments(projectTxHash: String): Boolean {
-        return grpc.isProjectLockedForInvestments(
-                ProjectLockedForInvestmentsRequest.newBuilder()
+    private fun isProjectCompletelyFunded(projectTxHash: String): Boolean {
+        return grpc.isProjectCompletelyFunded(
+                ProjectCompletelyFundedRequest.newBuilder()
                         .setProjectTxHash(projectTxHash)
                         .build()
-        ).locked
+        ).funded
     }
 
     private fun withdrawFundsFromProject(projectTxHash: String, adminTxHash: String, admin: Credentials, amount: Long) {
@@ -912,39 +821,6 @@ class BlockchainServiceTest : TestBase() {
                 PostVaultTxRequest.newBuilder()
                         .setData(convertToVaultEncoding(sign(withdrawTx, admin)))
                         .setTxType(typeToProto(TransactionType.PENDING_PROJ_WITHDRAW))
-                        .build()
-        )
-    }
-
-    private fun transferOwnership(projectTxHash: String, fromTxHash: String, from: Credentials, toTxHash: String, amount: Long) {
-        val transferTx = grpc.generateTransferOwnershipTx(
-                GenerateTransferOwnershipTx.newBuilder()
-                        .setProjectTxHash(projectTxHash)
-                        .setFromTxHash(fromTxHash)
-                        .setToTxHash(toTxHash)
-                        .setAmount(amount)
-                        .build()
-        )
-        grpc.postVaultTransaction(
-                PostVaultTxRequest.newBuilder()
-                        .setData(convertToVaultEncoding(sign(transferTx, from)))
-                        .setTxType(typeToProto(TransactionType.TRANSFER_OWNERSHIP))
-                        .build()
-        )
-    }
-
-    private fun cancelInvestment(projectTxHash: String, fromTxHash: String, from: Credentials, amount: Long) {
-        val cancelTx = grpc.generateCancelInvestmentTx(
-                GenerateCancelInvestmentTx.newBuilder()
-                        .setFromTxHash(fromTxHash)
-                        .setProjectTxHash(projectTxHash)
-                        .setAmount(amount)
-                        .build()
-        )
-        grpc.postVaultTransaction(
-                PostVaultTxRequest.newBuilder()
-                        .setData(convertToVaultEncoding(sign(cancelTx, from)))
-                        .setTxType(typeToProto(TransactionType.CANCEL_INVESTMENT))
                         .build()
         )
     }
