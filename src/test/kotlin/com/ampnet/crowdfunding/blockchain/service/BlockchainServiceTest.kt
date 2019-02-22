@@ -16,7 +16,8 @@ import com.ampnet.crowdfunding.proto.Empty
 import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
-import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
+import com.ampnet.crowdfunding.proto.GenerateApproveInvestmentTxRequest
+import com.ampnet.crowdfunding.proto.GenerateApproveWithdrawTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
 import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
@@ -54,6 +55,7 @@ import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.time.ZonedDateTime
 
+// TODO("Implement and write tests for revenue share payout")
 class BlockchainServiceTest : TestBase() {
 
     @Autowired
@@ -466,14 +468,14 @@ class BlockchainServiceTest : TestBase() {
         verify("Organization admin can withdraw funds from project") {
             withdrawFundsFromProject(projTxHash, bobTxHash, accounts.bob, testProject.invesmentCap)
             burn(projTxHash, testProject.invesmentCap)
-            assertThat(getProjectTotalInvestment(projTxHash)).isZero()
+            assertThat(getBalance(projTxHash)).isZero()
         }
 
         verify("All transactions are stored in database") {
             val transactions = transactionRepository.findAll()
-            assertThat(transactions).hasSize(15)
+            assertThat(transactions).hasSize(17)
 
-            val aliceInvestTx = transactions[11]
+            val aliceInvestTx = transactions[12]
             assertTransaction(
                     aliceInvestTx,
                     expectedFrom = aliceTxHash,
@@ -482,7 +484,7 @@ class BlockchainServiceTest : TestBase() {
                     expectedAmount = testProject.invesmentCap / 2
             )
 
-            val janeInvestTx = transactions[12]
+            val janeInvestTx = transactions[14]
             assertTransaction(
                     janeInvestTx,
                     expectedFrom = janeTxHash,
@@ -491,7 +493,7 @@ class BlockchainServiceTest : TestBase() {
                     expectedAmount = testProject.invesmentCap / 2
             )
 
-            val pendingWithdrawProjectFundsTx = transactions[13]
+            val pendingWithdrawProjectFundsTx = transactions[15]
             assertTransaction(
                     pendingWithdrawProjectFundsTx,
                     expectedFrom = projTxHash,
@@ -500,7 +502,7 @@ class BlockchainServiceTest : TestBase() {
                     expectedAmount = testProject.invesmentCap
             )
 
-            val withdrawProjectFundsTx = transactions[14]
+            val withdrawProjectFundsTx = transactions[16]
             assertTransaction(
                     withdrawProjectFundsTx,
                     expectedFrom = projTxHash,
@@ -566,8 +568,8 @@ class BlockchainServiceTest : TestBase() {
     }
 
     private fun approveTokenIssuer(fromTxHash: String, fromCredentials: Credentials, amount: Long) {
-        val approveTx = grpc.generateApproveTx(
-                GenerateApproveTxRequest.newBuilder()
+        val approveTx = grpc.generateApproveWithdrawTx(
+                GenerateApproveWithdrawTxRequest.newBuilder()
                         .setFromTxHash(fromTxHash)
                         .setAmount(amount)
                         .build()
@@ -768,12 +770,23 @@ class BlockchainServiceTest : TestBase() {
     }
 
     private fun invest(projectTxHash: String, investorTxHash: String, investor: Credentials, amount: Long) {
-        // TODO("adapt invest helper function for new flow (approve+invest)")
+        val approveTx = grpc.generateApproveInvestmentTx(
+                GenerateApproveInvestmentTxRequest.newBuilder()
+                        .setFromTxHash(investorTxHash)
+                        .setProjectTxHash(projectTxHash)
+                        .setAmount(amount)
+                        .build()
+        )
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(approveTx, investor)))
+                        .setTxType(typeToProto(TransactionType.PENDING_INVEST))
+                        .build()
+        )
         val investTx = grpc.generateInvestTx(
                 GenerateInvestTxRequest.newBuilder()
                         .setFromTxHash(investorTxHash)
                         .setProjectTxHash(projectTxHash)
-                        .setAmount(amount)
                         .build()
         )
         grpc.postVaultTransaction(

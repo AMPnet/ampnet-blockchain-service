@@ -20,8 +20,8 @@ enum TransactionType {
     ORG_ADD_MEMBER = 9;
     ORG_ADD_PROJECT = 10;
     ORG_ACTIVATE = 11;
-    TRANSFER_OWNERSHIP = 12;
-    CANCEL_INVESTMENT = 13;
+    PENDING_INVEST = 12;
+    CANCEL_PENDING_INVEST = 13;
 }
 
 //////// Cooperative contract messages ///////
@@ -80,20 +80,25 @@ message GenerateBurnFromTxRequest {
     uint64 amount = 3;
 }
 
-message GenerateApproveTxRequest {
+message GenerateApproveWithdrawTxRequest {
     string fromTxHash = 1;
     uint64 amount = 2;
+}
+
+message GenerateApproveInvestmentTxRequest {
+    string fromTxHash = 1;
+    string projectTxHash = 2;
+    uint64 amount = 3;
+}
+
+message GenerateCancelPendingInvestmentTxRequest {
+    string fromTxHash = 1;
+    string projectTxHash = 2;
 }
 
 message GenerateTransferTxRequest {
     string fromTxHash = 1;
     string toTxHash = 2;
-    uint64 amount = 3;
-}
-
-message GenerateInvestTxRequest {
-    string fromTxHash = 1;
-    string projectTxHash = 2;
     uint64 amount = 3;
 }
 
@@ -150,6 +155,11 @@ message OrganizationMembersResponse {
 
 
 ///////// Project contract ///////////////
+
+message GenerateInvestTxRequest {
+    string fromTxHash = 1;
+    string projectTxHash = 2;
+}
 
 message GenerateWithdrawProjectFundsTx {
     string fromTxHash = 1;
@@ -258,9 +268,10 @@ service BlockchainService {
 
     rpc generateMintTx(GenerateMintTxRequest) returns (RawTxResponse);
     rpc generateBurnFromTx(GenerateBurnFromTxRequest) returns (RawTxResponse);
-    rpc generateApproveTx(GenerateApproveTxRequest) returns (RawTxResponse);
+    rpc generateApproveWithdrawTx(GenerateApproveWithdrawTxRequest) returns (RawTxResponse);
+    rpc generateApproveInvestmentTx(GenerateApproveInvestmentTxRequest) returns (RawTxResponse);
+    rpc generateCancelPendingInvestmentTx(GenerateCancelPendingInvestmentTxRequest) returns (RawTxResponse);
     rpc getBalance(BalanceRequest) returns (BalanceResponse);
-    rpc generateInvestTx(GenerateInvestTxRequest) returns (RawTxResponse);
     rpc generateTransferTx(GenerateTransferTxRequest) returns (RawTxResponse);
 
 
@@ -277,6 +288,7 @@ service BlockchainService {
 
     // Project
 
+    rpc generateInvestTx(GenerateInvestTxRequest) returns (RawTxResponse);
     rpc generateWithdrawProjectFundsTx(GenerateWithdrawProjectFundsTx) returns (RawTxResponse);
     rpc getProjectMaxInvestmentPerUser(ProjectMaxInvestmentPerUserRequest) returns (ProjectMaxInvestmentPerUserResponse);
     rpc getProjectMinInvestmentPerUser(ProjectMinInvestmentPerUserRequest) returns (ProjectMinInvestmentPerUserResponse);

@@ -263,13 +263,13 @@ class TransactionServiceImpl(
                         )
                     }
                     TransactionType.INVEST.functionHash -> {
+                        // TODO("Fetch amount somehow")
                         return saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.from),
                                 to = walletService.getTxHash(signedTx.to),
                                 input = signedTx.data,
                                 type = TransactionType.INVEST
-                                // TODO("parse amount somehow")
                         )
                     }
                     else -> {

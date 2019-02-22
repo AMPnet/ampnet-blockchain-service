@@ -16,13 +16,15 @@ import com.ampnet.crowdfunding.proto.WalletActiveResponse
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
 import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
-import com.ampnet.crowdfunding.proto.GenerateApproveTxRequest
 import com.ampnet.crowdfunding.proto.BalanceRequest
 import com.ampnet.crowdfunding.proto.BalanceResponse
 import com.ampnet.crowdfunding.proto.Empty
 import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
+import com.ampnet.crowdfunding.proto.GenerateApproveInvestmentTxRequest
+import com.ampnet.crowdfunding.proto.GenerateApproveWithdrawTxRequest
+import com.ampnet.crowdfunding.proto.GenerateCancelPendingInvestmentTxRequest
 import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
@@ -207,19 +209,64 @@ class BlockchainService(
         }
     }
 
-    override fun generateApproveTx(request: GenerateApproveTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-        logger.info { "Received request generateApproveTx: $request" }
+    override fun generateApproveWithdrawTx(request: GenerateApproveWithdrawTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request generateApproveWithdrawTx: $request" }
         try {
             val (address, pubKey) = getPublicIdentity(request.fromTxHash)
+            logger.info { "Approve withdraw from wallet $address with public key $pubKey" }
+            val tokenIssuer = properties.accounts.issuingAuthorityAddress
             val tx = eurService.generateApproveTx(
                     address,
+                    tokenIssuer,
                     eurToToken(request.amount)
             )
-            logger.info { "Successfully generateApproveTx: $tx" }
+            logger.info { "Successfully generateApproveWithdrawTx: $tx" }
             responseObserver.onNext(convert(tx, pubKey))
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            logger.error(e) { "Failed to generateApproveTx" }
+            logger.error(e) { "Failed to generateApproveWithdrawTx" }
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun generateApproveInvestmentTx(request: GenerateApproveInvestmentTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request generateApproveInvestmentTx: $request" }
+        try {
+            val (address, pubKey) = getPublicIdentity(request.fromTxHash)
+            logger.info { "Approve investment from wallet $address with public key $pubKey" }
+            val (projectAddress, _) = getPublicIdentity(request.projectTxHash)
+            logger.info { "Approve investment into project with address $projectAddress" }
+            val tx = eurService.generateApproveTx(
+                    address,
+                    projectAddress,
+                    eurToToken(request.amount)
+            )
+            logger.info { "Successfully generateApproveInvestmentTx: $tx" }
+            responseObserver.onNext(convert(tx, pubKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to generateApproveInvestmentTx" }
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun generateCancelPendingInvestmentTx(request: GenerateCancelPendingInvestmentTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generateCancelPendingInvestmentTx: $request" }
+        try {
+            val (address, pubKey) = getPublicIdentity(request.fromTxHash)
+            logger.info { "Investor wallet $address with public key $pubKey" }
+            val (projectAddress, _) = getPublicIdentity(request.projectTxHash)
+            logger.info { "Cancel investment approval for project with address $projectAddress" }
+            val tx = eurService.generateApproveTx(
+                    address,
+                    projectAddress,
+                    BigInteger.ZERO
+            )
+            logger.info { "Successfully generateCancelPendingInvestmentTx: $tx" }
+            responseObserver.onNext(convert(tx, pubKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to generateCancelPendingInvestmentTx" }
             responseObserver.onError(e)
         }
     }

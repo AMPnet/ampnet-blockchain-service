@@ -112,7 +112,7 @@ class OrganizationServiceImpl(
 
     override fun isVerified(organization: String): Boolean {
         val function = Function(
-                "isVerified",
+                "verifiedByCoop",
                 emptyList(),
                 listOf(TypeReference.create(Bool::class.java))
         )

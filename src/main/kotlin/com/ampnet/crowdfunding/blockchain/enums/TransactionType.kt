@@ -15,7 +15,9 @@ enum class TransactionType(val functionHash: String) {
     TRANSFER(EthUtilities.getFunctionHash("transfer(address,uint256)")),
     ORG_ADD_MEMBER(EthUtilities.getFunctionHash("addMember(address)")),
     ORG_ADD_PROJECT(EthUtilities.getFunctionHash("addProject(uint256,uint256,uint256)")),
-    ORG_ACTIVATE(EthUtilities.getFunctionHash("activate()"));
+    ORG_ACTIVATE(EthUtilities.getFunctionHash("activate()")),
+    PENDING_INVEST(EthUtilities.getFunctionHash("approve(address,uint256)")),
+    CANCEL_PENDING_INVEST(EthUtilities.getFunctionHash("approve(address,uint256"));
 }
 
 object EthUtilities {
