@@ -6,11 +6,11 @@ import com.ampnet.crowdfunding.blockchain.persistence.model.Transaction
 import java.time.ZonedDateTime
 
 data class TransactionResponse(
-        val hash: String,
-        val state: TransactionState,
-        val type: TransactionType,
-        val createdAt: ZonedDateTime,
-        val processedAt: ZonedDateTime
+    val hash: String,
+    val state: TransactionState,
+    val type: TransactionType,
+    val createdAt: ZonedDateTime,
+    val processedAt: ZonedDateTime
 ) {
     constructor(transaction: Transaction): this (
         transaction.hash,
