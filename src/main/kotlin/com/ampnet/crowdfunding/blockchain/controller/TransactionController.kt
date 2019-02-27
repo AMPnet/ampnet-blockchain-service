@@ -1,6 +1,6 @@
 package com.ampnet.crowdfunding.blockchain.controller
 
-import com.ampnet.crowdfunding.blockchain.controller.pojo.TransactionListRequest
+import com.ampnet.crowdfunding.blockchain.controller.pojo.TransactionStatusRequest
 import com.ampnet.crowdfunding.blockchain.controller.pojo.TransactionListResponse
 import com.ampnet.crowdfunding.blockchain.controller.pojo.TransactionResponse
 import com.ampnet.crowdfunding.blockchain.persistence.model.Transaction
@@ -17,10 +17,10 @@ class TransactionController(private val transactionService: TransactionService) 
 
     companion object : KLogging()
 
-    @PostMapping("/transactions")
-    fun checkTransactionsStatus(@RequestBody request: TransactionListRequest): ResponseEntity<TransactionListResponse> {
+    @PostMapping("/transaction/status")
+    fun checkTransactionsStatus(@RequestBody request: TransactionStatusRequest): ResponseEntity<TransactionListResponse> {
         logger.debug { "Received request to check transaction status for list: $request" }
-        val transactions = request.transactions.map { getTransaction(it.hash) }
+        val transactions = request.txHashes.map { getTransaction(it) }
         val response = transactions
                 .filterNotNull()
                 .map { transaction -> TransactionResponse(transaction) }
