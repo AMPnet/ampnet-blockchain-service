@@ -51,6 +51,9 @@ jobs:
       - run:
           name: Kotlin linter
           command: gradle ktlint
+      - run:
+          name: Generate API documentation
+          command: gradle asciidoctor
 
   deploy:
     docker:
@@ -100,6 +103,9 @@ jobs:
           name: Build
           command: gradle build
 
+      - run:
+          name: Copy docs to static resources
+          command: gradle copyDocs
       - run:
           name: Push image to Docker Hub
           command: gradle jib
