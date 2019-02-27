@@ -32,7 +32,7 @@ apply plugin: 'idea'
 apply plugin: 'jacoco'
 
 group = 'com.ampnet.crowdfunding'
-version = '0.0.1-SNAPSHOT'
+version = '0.0.2'
 sourceCompatibility = 1.8
 compileKotlin {
 	kotlinOptions {
@@ -107,6 +107,7 @@ jib.container.useCurrentTimestamp = true
 jib.to.image = "ampnet/crowdfunding-blockchain:${version}"
 jib.to.auth.username = "${System.env.DOCKER_USERNAME}"
 jib.to.auth.password = "${System.env.DOCKER_PASSWORD}"
+jib.to.tags = ["latest"]
 
 task ktlint(type: JavaExec, group: "verification") {
 	description = "Check Kotlin code style."
