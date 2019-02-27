@@ -7,6 +7,10 @@ interface ProjectService {
 
     fun generateInvestTx(from: String, project: String): RawTransaction
 
+    fun generateStartRevenuePayoutTx(from: String, project: String, revenue: BigInteger): RawTransaction
+
+    fun generatePayoutRevenueSharesTx(from: String, project: String): RawTransaction
+
     fun generateWithdrawTx(
         from: String,
         project: String,

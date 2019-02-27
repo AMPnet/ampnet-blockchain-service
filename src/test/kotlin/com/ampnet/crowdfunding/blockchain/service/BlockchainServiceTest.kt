@@ -21,6 +21,8 @@ import com.ampnet.crowdfunding.proto.GenerateApproveWithdrawTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
 import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
+import com.ampnet.crowdfunding.proto.GeneratePayoutRevenueSharesTxRequest
+import com.ampnet.crowdfunding.proto.GenerateStartRevenuePayoutTxRequest
 import com.ampnet.crowdfunding.proto.GenerateTransferTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
@@ -55,7 +57,6 @@ import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.time.ZonedDateTime
 
-// TODO("Implement and write tests for revenue share payout")
 class BlockchainServiceTest : TestBase() {
 
     @Autowired
@@ -538,6 +539,83 @@ class BlockchainServiceTest : TestBase() {
         }
     }
 
+    @Test
+    fun mustBePossibleForProjectAdminToPayoutRevenueShares() {
+        lateinit var bobTxHash: String
+        lateinit var aliceTxHash: String
+        lateinit var janeTxHash: String
+        lateinit var orgTxHash: String
+        lateinit var projTxHash: String
+
+        val initialBalance = testProject.invesmentCap / 2
+        val revenue = 100000L
+
+        suppose("Investors and project are created, investment cap reached.") {
+            bobTxHash = addWallet(accounts.bob).txHash
+            aliceTxHash = addWallet(accounts.alice).txHash
+            janeTxHash = addWallet(accounts.jane).txHash
+
+            mint(bobTxHash, initialBalance)
+            mint(aliceTxHash, initialBalance)
+            mint(janeTxHash, initialBalance)
+
+            orgTxHash = addAndApproveOrganization(bobTxHash, accounts.bob)
+            projTxHash = createTestProject(orgTxHash, bobTxHash, accounts.bob, testProject)
+
+            invest(projTxHash, aliceTxHash, accounts.alice, initialBalance)
+            invest(projTxHash, janeTxHash, accounts.jane, initialBalance)
+        }
+
+        verify("Admin can payout revenue shares to investors.") {
+            mint(projTxHash, revenue)
+            payoutRevenueShares(projTxHash, revenue, bobTxHash, accounts.bob)
+
+            // Alice and Jane both have 50% stake at power plant so they should get half of revenue each
+            assertThat(getBalance(aliceTxHash)).isEqualTo(revenue / 2)
+            assertThat(getBalance(janeTxHash)).isEqualTo(revenue / 2)
+        }
+
+        verify("All transactions are stored in database") {
+            val transactions = transactionRepository.findAll()
+            assertThat(transactions).hasSize(18)
+
+            val payoutStartedTx = transactions[16]
+            assertTransaction(
+                    payoutStartedTx,
+                    expectedFrom = bobTxHash,
+                    expectedTo = projTxHash,
+                    expectedType = TransactionType.START_REVENUE_PAYOUT,
+                    expectedAmount = revenue
+            )
+
+            val payoutTx = transactions[17]
+            assertTransaction(
+                    payoutTx,
+                    expectedFrom = bobTxHash,
+                    expectedTo = projTxHash,
+                    expectedType = TransactionType.REVENUE_PAYOUT
+            )
+
+            val aliceSharePayoutTx = transactions[18]
+            assertTransaction(
+                    aliceSharePayoutTx,
+                    expectedFrom = projTxHash,
+                    expectedTo = aliceTxHash,
+                    expectedType = TransactionType.SHARE_PAYOUT,
+                    expectedAmount = revenue / 2
+            )
+
+            val janeSharePayoutTx = transactions[19]
+            assertTransaction(
+                    janeSharePayoutTx,
+                    expectedFrom = projTxHash,
+                    expectedTo = janeTxHash,
+                    expectedType = TransactionType.SHARE_PAYOUT,
+                    expectedAmount = revenue / 2
+            )
+        }
+    }
+
     /** HELPER FUNCTIONS */
 
     private fun addWallet(wallet: Credentials): PostTxResponse {
@@ -793,6 +871,34 @@ class BlockchainServiceTest : TestBase() {
                 PostVaultTxRequest.newBuilder()
                         .setData(convertToVaultEncoding(sign(investTx, investor)))
                         .setTxType(typeToProto(TransactionType.INVEST))
+                        .build()
+        )
+    }
+
+    private fun payoutRevenueShares(projectTxHash: String, revenue: Long, adminTxHash: String, admin: Credentials) {
+        val startPayoutTx = grpc.generateStartRevenuePayoutTx(
+                GenerateStartRevenuePayoutTxRequest.newBuilder()
+                        .setFromTxHash(adminTxHash)
+                        .setProjectTxHash(projectTxHash)
+                        .setRevenue(revenue)
+                        .build()
+        )
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(startPayoutTx, admin)))
+                        .setTxType(typeToProto(TransactionType.START_REVENUE_PAYOUT))
+                        .build()
+        )
+        val payoutTx = grpc.generatePayoutRevenueSharesTx(
+                GeneratePayoutRevenueSharesTxRequest.newBuilder()
+                        .setFromTxHash(adminTxHash)
+                        .setProjectTxHash(projectTxHash)
+                        .build()
+        )
+        grpc.postVaultTransaction(
+                PostVaultTxRequest.newBuilder()
+                        .setData(convertToVaultEncoding(sign(payoutTx, admin)))
+                        .setTxType(typeToProto(TransactionType.REVENUE_PAYOUT))
                         .build()
         )
     }

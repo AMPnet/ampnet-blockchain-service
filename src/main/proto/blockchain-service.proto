@@ -22,6 +22,9 @@ enum TransactionType {
     ORG_ACTIVATE = 11;
     PENDING_INVEST = 12;
     CANCEL_PENDING_INVEST = 13;
+    START_REVENUE_PAYOUT = 14;
+    REVENUE_PAYOUT = 15;
+    SHARE_PAYOUT = 16;
 }
 
 //////// Cooperative contract messages ///////
@@ -161,6 +164,17 @@ message GenerateInvestTxRequest {
     string projectTxHash = 2;
 }
 
+message GenerateStartRevenuePayoutTxRequest {
+    string fromTxHash = 1;
+    string projectTxHash = 2;
+    uint64 revenue = 3;
+}
+
+message GeneratePayoutRevenueSharesTxRequest {
+    string fromTxHash = 1;
+    string projectTxHash = 2;
+}
+
 message GenerateWithdrawProjectFundsTx {
     string fromTxHash = 1;
     string projectTxHash = 2;
@@ -289,6 +303,8 @@ service BlockchainService {
     // Project
 
     rpc generateInvestTx(GenerateInvestTxRequest) returns (RawTxResponse);
+    rpc generateStartRevenuePayoutTx(GenerateStartRevenuePayoutTxRequest) returns (RawTxResponse);
+    rpc generatePayoutRevenueSharesTx(GeneratePayoutRevenueSharesTxRequest) returns (RawTxResponse);
     rpc generateWithdrawProjectFundsTx(GenerateWithdrawProjectFundsTx) returns (RawTxResponse);
     rpc getProjectMaxInvestmentPerUser(ProjectMaxInvestmentPerUserRequest) returns (ProjectMaxInvestmentPerUserResponse);
     rpc getProjectMinInvestmentPerUser(ProjectMinInvestmentPerUserRequest) returns (ProjectMinInvestmentPerUserResponse);

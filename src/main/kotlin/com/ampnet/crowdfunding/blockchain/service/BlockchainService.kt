@@ -26,6 +26,8 @@ import com.ampnet.crowdfunding.proto.GenerateApproveInvestmentTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveWithdrawTxRequest
 import com.ampnet.crowdfunding.proto.GenerateCancelPendingInvestmentTxRequest
 import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
+import com.ampnet.crowdfunding.proto.GeneratePayoutRevenueSharesTxRequest
+import com.ampnet.crowdfunding.proto.GenerateStartRevenuePayoutTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawProjectFundsTx
 import com.ampnet.crowdfunding.proto.GetOrganizationsResponse
@@ -462,6 +464,44 @@ class BlockchainService(
             responseObserver.onCompleted()
         } catch (e: Exception) {
             logger.error(e) { "Failed to getAllOrganizationMembers" }
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun generateStartRevenuePayoutTx(request: GenerateStartRevenuePayoutTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generateStartRevenuePayoutTx: $request" }
+        try {
+            val (address, publicKey) = getPublicIdentity(request.fromTxHash)
+            logger.info { "Wallet $address with public key $publicKey for txHash ${request.fromTxHash}" }
+            val (projAddress, _) = getPublicIdentity(request.projectTxHash)
+            logger.info { "Project $projAddress for txHash ${request.projectTxHash}"}
+            val tx = projectService.generateStartRevenuePayoutTx(
+                    address,
+                    projAddress,
+                    eurToToken(request.revenue)
+            )
+            logger.info { "Successfully generateStartRevenuePayoutTx: $tx" }
+            responseObserver.onNext(convert(tx, publicKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to generateStartRevenuePayoutTx" }
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun generatePayoutRevenueSharesTx(request: GeneratePayoutRevenueSharesTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generatePayoutRevenueSharesTx: $request" }
+        try {
+            val (address, publicKey) = getPublicIdentity(request.fromTxHash)
+            logger.info { "Wallet $address with public key $publicKey for txHash ${request.fromTxHash}" }
+            val (projAddress, _) = getPublicIdentity(request.projectTxHash)
+            logger.info { "Project $projAddress for txHash ${request.projectTxHash}"}
+            val tx = projectService.generatePayoutRevenueSharesTx(address, projAddress)
+            logger.info { "Successfully generatePayoutRevenueSharesTx: $tx" }
+            responseObserver.onNext(convert(tx, publicKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to generatePayoutRevenueSharesTx" }
             responseObserver.onError(e)
         }
     }

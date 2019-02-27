@@ -17,7 +17,10 @@ enum class TransactionType(val functionHash: String) {
     ORG_ADD_PROJECT(EthUtilities.getFunctionHash("addProject(uint256,uint256,uint256)")),
     ORG_ACTIVATE(EthUtilities.getFunctionHash("activate()")),
     PENDING_INVEST(EthUtilities.getFunctionHash("approve(address,uint256)")),
-    CANCEL_PENDING_INVEST(EthUtilities.getFunctionHash("approve(address,uint256"));
+    CANCEL_PENDING_INVEST(EthUtilities.getFunctionHash("approve(address,uint256")),
+    START_REVENUE_PAYOUT(EthUtilities.getFunctionHash("startRevenueSharesPayout(uint256)")),
+    REVENUE_PAYOUT(EthUtilities.getFunctionHash("payoutRevenueShares()")),
+    SHARE_PAYOUT("SHARE_PAYOUT");
 }
 
 object EthUtilities {

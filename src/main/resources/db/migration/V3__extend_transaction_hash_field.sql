@@ -1,0 +1,2 @@
+ALTER TABLE transaction
+ALTER COLUMN hash TYPE VARCHAR(70);

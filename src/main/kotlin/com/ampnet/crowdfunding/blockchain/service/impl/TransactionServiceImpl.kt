@@ -18,6 +18,7 @@ import org.web3j.crypto.Credentials
 import org.web3j.crypto.SignedRawTransaction
 import org.web3j.crypto.TransactionDecoder
 import org.web3j.protocol.Web3j
+import org.web3j.protocol.core.methods.response.EthGetTransactionReceipt
 import java.math.BigInteger
 import java.time.ZonedDateTime
 import javax.transaction.Transactional
@@ -52,13 +53,7 @@ class TransactionServiceImpl(
 
         // Try to wait for mined event and update tx right away (if fails scheduled job will handle it anyway)
         web3j.ethGetTransactionReceipt(txHash).flowable().subscribe { receipt ->
-            if (receipt.result.isStatusOK) {
-                tx.state = TransactionState.MINED
-            } else {
-                tx.state = TransactionState.FAILED
-            }
-            tx.processedAt = ZonedDateTime.now()
-            transactionRepository.save(tx)
+            updateTransactionState(tx, receipt)
         }
 
         return tx
@@ -84,14 +79,9 @@ class TransactionServiceImpl(
     override fun updateTransactionStates() {
         val pendingTransactions = transactionRepository.findAllPending()
         for (tx in pendingTransactions) {
-            web3j.ethGetTransactionReceipt(tx.hash).send().transactionReceipt.ifPresent {
-                if (it.isStatusOK) {
-                    tx.state = TransactionState.MINED
-                } else {
-                    tx.state = TransactionState.FAILED
-                }
-                tx.processedAt = ZonedDateTime.now()
-                transactionRepository.save(tx)
+            val receipt = web3j.ethGetTransactionReceipt(tx.hash).send()
+            if (receipt.transactionReceipt.isPresent) {
+                updateTransactionState(tx, receipt)
             }
         }
     }
@@ -263,13 +253,31 @@ class TransactionServiceImpl(
                         )
                     }
                     TransactionType.INVEST.functionHash -> {
-                        // TODO("Fetch amount somehow")
                         return saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.from),
                                 to = walletService.getTxHash(signedTx.to),
                                 input = signedTx.data,
                                 type = TransactionType.INVEST
+                        )
+                    }
+                    TransactionType.START_REVENUE_PAYOUT.functionHash -> {
+                        return saveTransaction(
+                                hash = txHash,
+                                from = walletService.getTxHash(signedTx.from),
+                                to = walletService.getTxHash(signedTx.to),
+                                input = signedTx.data,
+                                type = TransactionType.START_REVENUE_PAYOUT,
+                                amount = AbiUtils.decodeAmount(inputData)
+                        )
+                    }
+                    TransactionType.REVENUE_PAYOUT.functionHash -> {
+                        return saveTransaction(
+                                hash = txHash,
+                                from = walletService.getTxHash(signedTx.from),
+                                to = walletService.getTxHash(signedTx.to),
+                                input = signedTx.data,
+                                type = TransactionType.REVENUE_PAYOUT
                         )
                     }
                     else -> {
@@ -354,6 +362,50 @@ class TransactionServiceImpl(
                     .withDescription("Transaction with txHash: $hash already exists!")
                     .asRuntimeException()
         }
+    }
+
+    private fun updateTransactionState(tx: Transaction, receipt: EthGetTransactionReceipt) {
+        val txReceipt = receipt.transactionReceipt.get()
+
+        // update state
+        if (receipt.result.isStatusOK) {
+            tx.state = TransactionState.MINED
+        } else {
+            tx.state = TransactionState.FAILED
+        }
+
+        // update amount (if tx type was investment)
+        if (tx.type == TransactionType.INVEST) {
+            val amount = AbiUtils.decodeAmount(txReceipt.logs[1].data)
+            tx.amount = amount
+        } else if (tx.type == TransactionType.REVENUE_PAYOUT) {
+            txReceipt.logs.forEachIndexed { index, log ->
+                if (index % 2 == 0) {
+                    val investor = AbiUtils.decodeAddress(log.topics[1])
+                    val amount = AbiUtils.decodeAmount(log.data)
+                    val investTx = Transaction::class.java.newInstance()
+                    // TODO("fix this code shitstorm")
+                    // TODO("add read-only transactional annotation to services")
+                    investTx.fromWallet = tx.toWallet
+                    investTx.toWallet = walletService.getTxHash(investor)
+                    investTx.state = tx.state
+                    investTx.amount = amount
+                    investTx.createdAt = tx.createdAt
+                    investTx.processedAt = ZonedDateTime.now()
+                    investTx.hash = "${tx.hash}+${index / 2}"
+                    investTx.input = tx.input
+                    investTx.type = TransactionType.SHARE_PAYOUT
+
+                    transactionRepository.save(investTx)
+                }
+            }
+        }
+
+        // update processedAt timestamp
+        tx.processedAt = ZonedDateTime.now()
+
+        // save to repo
+        transactionRepository.save(tx)
     }
 
     private fun saveWallet(address: String? = null, type: WalletType, transaction: Transaction) {

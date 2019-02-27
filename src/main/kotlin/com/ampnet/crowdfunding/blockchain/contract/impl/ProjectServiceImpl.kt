@@ -41,6 +41,44 @@ class ProjectServiceImpl(
         )
     }
 
+    override fun generateStartRevenuePayoutTx(from: String, project: String, revenue: BigInteger): RawTransaction {
+        val function = Function(
+                "startRevenueSharesPayout",
+                listOf(Uint256(revenue)),
+                emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
+        val gasPriceResponse = web3j.ethGasPrice().send()
+
+        return RawTransaction.createTransaction(
+                txCountResponse.transactionCount,
+                gasPriceResponse.gasPrice,
+                BigInteger.valueOf(1000000),
+                project,
+                encodedFunction
+        )
+    }
+
+    override fun generatePayoutRevenueSharesTx(from: String, project: String): RawTransaction {
+        val function = Function(
+                "payoutRevenueShares",
+                emptyList(),
+                emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
+        val gasPriceResponse = web3j.ethGasPrice().send()
+
+        return RawTransaction.createTransaction(
+                txCountResponse.transactionCount,
+                gasPriceResponse.gasPrice,
+                BigInteger.valueOf(1000000),
+                project,
+                encodedFunction
+        )
+    }
+
     override fun generateWithdrawTx(
         from: String,
         project: String,
