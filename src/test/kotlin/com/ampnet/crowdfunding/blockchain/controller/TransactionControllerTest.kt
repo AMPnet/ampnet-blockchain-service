@@ -1,8 +1,7 @@
 package com.ampnet.crowdfunding.blockchain.controller
 
-import com.ampnet.crowdfunding.blockchain.controller.pojo.TransactionListRequest
+import com.ampnet.crowdfunding.blockchain.controller.pojo.TransactionStatusRequest
 import com.ampnet.crowdfunding.blockchain.controller.pojo.TransactionListResponse
-import com.ampnet.crowdfunding.blockchain.controller.pojo.TransactionRequest
 import com.ampnet.crowdfunding.blockchain.enums.TransactionState
 import com.ampnet.crowdfunding.blockchain.enums.TransactionType
 import com.ampnet.crowdfunding.blockchain.persistence.model.Transaction
@@ -17,7 +16,7 @@ import java.time.ZonedDateTime
 
 class TransactionControllerTest : ControllerTestBase() {
 
-    private val pathTransactions = "/transactions"
+    private val pathTransactions = "/transaction/status"
 
     private lateinit var testContext: TestContext
 
@@ -30,7 +29,6 @@ class TransactionControllerTest : ControllerTestBase() {
     @Test
     fun mustBeAbleToGetTransactionResponse() {
         suppose("Some transactions are stored") {
-            // TODO: create transactions
             val transactions = mutableListOf<Transaction>()
             transactions.add(createTransaction(
                     "0xed9ef9390d2eb6f6c55b2b646a8ef8a48b4ff572c11ef6e52b0af2b1174530a6",
@@ -55,9 +53,9 @@ class TransactionControllerTest : ControllerTestBase() {
         }
 
         verify("Controller will return transactions") {
-            val transactionHashList = testContext.transactions.map { TransactionRequest(it.hash) }.toMutableList()
-            transactionHashList.add(TransactionRequest("non-existing-hash"))
-            val request = TransactionListRequest(transactionHashList)
+            val transactionHashList = testContext.transactions.map { it.hash }.toMutableList()
+            transactionHashList.add("non-existing-hash")
+            val request = TransactionStatusRequest(transactionHashList)
 
             val result = mockMvc.perform(
                     post(pathTransactions)
