@@ -22,8 +22,8 @@ class TransactionController(private val transactionService: TransactionService) 
         logger.debug { "Received request to check transaction status for list: $request" }
         val transactions = request.transactions.map { getTransaction(it.hash) }
         val response = transactions
-                .filter { it != null }
-                .map { transaction -> TransactionResponse(transaction!!) }
+                .filterNotNull()
+                .map { transaction -> TransactionResponse(transaction) }
 
         return ResponseEntity.ok(TransactionListResponse(response))
     }
