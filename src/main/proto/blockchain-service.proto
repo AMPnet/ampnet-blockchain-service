@@ -11,7 +11,7 @@ enum TransactionType {
     WALLET_CREATE = 0;
     ORG_CREATE = 1;
     DEPOSIT = 2;
-    PENDING_WITHDRAW = 3;
+    APPROVE = 3;
     PENDING_ORG_WITHDRAW = 4;
     PENDING_PROJ_WITHDRAW = 5;
     WITHDRAW = 6;
@@ -20,11 +20,9 @@ enum TransactionType {
     ORG_ADD_MEMBER = 9;
     ORG_ADD_PROJECT = 10;
     ORG_ACTIVATE = 11;
-    PENDING_INVEST = 12;
-    CANCEL_PENDING_INVEST = 13;
-    START_REVENUE_PAYOUT = 14;
-    REVENUE_PAYOUT = 15;
-    SHARE_PAYOUT = 16;
+    START_REVENUE_PAYOUT = 12;
+    REVENUE_PAYOUT = 13;
+    SHARE_PAYOUT = 14;
 }
 
 //////// Cooperative contract messages ///////

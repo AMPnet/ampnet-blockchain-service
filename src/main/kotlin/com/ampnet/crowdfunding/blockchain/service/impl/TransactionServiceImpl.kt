@@ -45,11 +45,11 @@ class TransactionServiceImpl(
         // 3) check if callee is one of ampnet smart contracts
         throwIfCallerNotMemberOfAmpnet(txData)
         throwIfTxTypeDoesNotMatchActualTx(txData, txType)
-        val type = getTargetContractType(txData)
+        val contractType = getTargetContractType(txData)
 
         // Broadcast transaction to network
         val txHash = web3j.ethSendRawTransaction(txData).send().transactionHash
-        val tx = persistTransaction(txData, txHash, type)
+        val tx = persistTransaction(txData, txHash, contractType)
 
         // Try to wait for mined event and update tx right away (if fails scheduled job will handle it anyway)
         web3j.ethGetTransactionReceipt(txHash).flowable().subscribe { receipt ->
@@ -86,7 +86,7 @@ class TransactionServiceImpl(
         }
     }
 
-    private fun persistTransaction(txData: String, txHash: String, type: ContractType): Transaction {
+    private fun persistTransaction(txData: String, txHash: String, contractType: ContractType): Transaction {
         val signedTx = TransactionDecoder.decode(txData) as SignedRawTransaction
         val input = signedTx.data
         val functionHash = input.substring(0, 8).toLowerCase()
@@ -94,7 +94,7 @@ class TransactionServiceImpl(
 
         throwIfTxAlreadyExists(txHash)
 
-        when (type) {
+        when (contractType) {
             ContractType.AMPNET -> {
                 when (functionHash) {
                     TransactionType.WALLET_CREATE.functionHash -> {
@@ -155,14 +155,17 @@ class TransactionServiceImpl(
                                 amount = amount
                         )
                     }
-                    TransactionType.PENDING_WITHDRAW.functionHash -> {
+                    TransactionType.APPROVE.functionHash -> {
                         val (address, amount) = AbiUtils.decodeAddressAndAmount(inputData)
+                        val issuingAuthority = properties.accounts.issuingAuthorityAddress
+                        val spender =
+                                if (address == issuingAuthority) issuingAuthority else walletService.getTxHash(address)
                         return saveTransaction(
                                 hash = txHash,
                                 from = walletService.getTxHash(signedTx.from.toLowerCase()),
-                                to = address,
+                                to = spender,
                                 input = signedTx.data,
-                                type = TransactionType.PENDING_WITHDRAW,
+                                type = TransactionType.APPROVE,
                                 amount = amount
                         )
                     }
@@ -381,18 +384,17 @@ class TransactionServiceImpl(
         } else if (tx.type == TransactionType.REVENUE_PAYOUT) {
             txReceipt.logs.forEachIndexed { index, log ->
                 if (index % 2 == 0) {
-                    val investor = AbiUtils.decodeAddress(log.topics[1])
+                    val investor = AbiUtils.decodeAddress(log.topics[2])
                     val amount = AbiUtils.decodeAmount(log.data)
                     val investTx = Transaction::class.java.newInstance()
-                    // TODO("fix this code shitstorm")
-                    // TODO("add read-only transactional annotation to services")
+
                     investTx.fromWallet = tx.toWallet
                     investTx.toWallet = walletService.getTxHash(investor)
                     investTx.state = tx.state
                     investTx.amount = amount
                     investTx.createdAt = tx.createdAt
                     investTx.processedAt = ZonedDateTime.now()
-                    investTx.hash = "${tx.hash}+${index / 2}"
+                    investTx.hash = "${tx.hash}+$investor"
                     investTx.input = tx.input
                     investTx.type = TransactionType.SHARE_PAYOUT
 

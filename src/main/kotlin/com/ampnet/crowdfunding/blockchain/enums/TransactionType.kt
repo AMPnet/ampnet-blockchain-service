@@ -7,7 +7,7 @@ enum class TransactionType(val functionHash: String) {
     WALLET_CREATE(EthUtilities.getFunctionHash("addWallet(address)")),
     ORG_CREATE(EthUtilities.getFunctionHash("addOrganization()")),
     DEPOSIT(EthUtilities.getFunctionHash("mint(address,uint256)")),
-    PENDING_WITHDRAW(EthUtilities.getFunctionHash("approve(address,uint256)")),
+    APPROVE(EthUtilities.getFunctionHash("approve(address,uint256)")),
     PENDING_ORG_WITHDRAW(EthUtilities.getFunctionHash("withdrawFunds(address,uint256)")),
     PENDING_PROJ_WITHDRAW(EthUtilities.getFunctionHash("withdraw(address,uint256)")),
     WITHDRAW(EthUtilities.getFunctionHash("burnFrom(address,uint256)")),
@@ -16,11 +16,10 @@ enum class TransactionType(val functionHash: String) {
     ORG_ADD_MEMBER(EthUtilities.getFunctionHash("addMember(address)")),
     ORG_ADD_PROJECT(EthUtilities.getFunctionHash("addProject(uint256,uint256,uint256)")),
     ORG_ACTIVATE(EthUtilities.getFunctionHash("activate()")),
-    PENDING_INVEST(EthUtilities.getFunctionHash("approve(address,uint256)")),
-    CANCEL_PENDING_INVEST(EthUtilities.getFunctionHash("approve(address,uint256")),
     START_REVENUE_PAYOUT(EthUtilities.getFunctionHash("startRevenueSharesPayout(uint256)")),
     REVENUE_PAYOUT(EthUtilities.getFunctionHash("payoutRevenueShares()")),
     SHARE_PAYOUT("SHARE_PAYOUT");
+
 }
 
 object EthUtilities {
