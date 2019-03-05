@@ -264,6 +264,15 @@ class TransactionServiceImpl(
                                 type = TransactionType.INVEST
                         )
                     }
+                    TransactionType.WITHDRAW_INVESTMENT.functionHash -> {
+                        return saveTransaction(
+                                hash = txHash,
+                                from = walletService.getTxHash(signedTx.to),
+                                to = walletService.getTxHash(signedTx.from),
+                                input = signedTx.data,
+                                type = TransactionType.WITHDRAW_INVESTMENT
+                        )
+                    }
                     TransactionType.START_REVENUE_PAYOUT.functionHash -> {
                         return saveTransaction(
                                 hash = txHash,
@@ -401,6 +410,9 @@ class TransactionServiceImpl(
                     transactionRepository.save(investTx)
                 }
             }
+        } else if (tx.type == TransactionType.WITHDRAW_INVESTMENT) {
+            val amount = AbiUtils.decodeAmount(txReceipt.logs[0].data)
+            tx.amount = amount
         }
 
         // update processedAt timestamp

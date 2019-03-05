@@ -52,6 +52,7 @@ import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserRequest
 import com.ampnet.crowdfunding.proto.ProjectMinInvestmentPerUserResponse
 import com.ampnet.crowdfunding.proto.ProjectTotalInvestmentForUserRequest
 import com.ampnet.crowdfunding.proto.ProjectTotalInvestmentForUserResponse
+import com.ampnet.crowdfunding.proto.GenerateWithdrawInvestmentTxRequest
 import com.ampnet.crowdfunding.proto.RawTxResponse
 import io.github.novacrypto.base58.Base58
 import io.grpc.stub.StreamObserver
@@ -68,13 +69,13 @@ import java.math.BigInteger
 
 @GRpcService
 class BlockchainService(
-        val transactionService: TransactionService,
-        val walletService: WalletService,
-        val coopService: CoopService,
-        val eurService: EurService,
-        val organizationService: OrganizationService,
-        val projectService: ProjectService,
-        val properties: ApplicationProperties
+    val transactionService: TransactionService,
+    val walletService: WalletService,
+    val coopService: CoopService,
+    val eurService: EurService,
+    val organizationService: OrganizationService,
+    val projectService: ProjectService,
+    val properties: ApplicationProperties
 ) : BlockchainServiceGrpc.BlockchainServiceImplBase() {
 
     companion object : KLogging()
@@ -399,7 +400,8 @@ class BlockchainService(
                     orgAddress,
                     eurToToken(request.maxInvestmentPerUser),
                     eurToToken(request.minInvestmentPerUser),
-                    eurToToken(request.investmentCap)
+                    eurToToken(request.investmentCap),
+                    request.endInvestmentTime.toBigInteger()
             )
             logger.info { "Successfully generateAddOrganizationProjectTx" }
             responseObserver.onNext(convert(tx, fromPubKey))
@@ -474,7 +476,7 @@ class BlockchainService(
             val (address, publicKey) = getPublicIdentity(request.fromTxHash)
             logger.info { "Wallet $address with public key $publicKey for txHash ${request.fromTxHash}" }
             val (projAddress, _) = getPublicIdentity(request.projectTxHash)
-            logger.info { "Project $projAddress for txHash ${request.projectTxHash}"}
+            logger.info { "Project $projAddress for txHash ${request.projectTxHash}" }
             val tx = projectService.generateStartRevenuePayoutTx(
                     address,
                     projAddress,
@@ -495,13 +497,30 @@ class BlockchainService(
             val (address, publicKey) = getPublicIdentity(request.fromTxHash)
             logger.info { "Wallet $address with public key $publicKey for txHash ${request.fromTxHash}" }
             val (projAddress, _) = getPublicIdentity(request.projectTxHash)
-            logger.info { "Project $projAddress for txHash ${request.projectTxHash}"}
+            logger.info { "Project $projAddress for txHash ${request.projectTxHash}" }
             val tx = projectService.generatePayoutRevenueSharesTx(address, projAddress)
             logger.info { "Successfully generatePayoutRevenueSharesTx: $tx" }
             responseObserver.onNext(convert(tx, publicKey))
             responseObserver.onCompleted()
         } catch (e: Exception) {
             logger.error(e) { "Failed to generatePayoutRevenueSharesTx" }
+            responseObserver.onError(e)
+        }
+    }
+
+    override fun generateWithdrawInvestmentTx(request: GenerateWithdrawInvestmentTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generateWithdrawInvestmentTx: $request" }
+        try {
+            val (address, publicKey) = getPublicIdentity(request.fromTxHash)
+            logger.info { "Wallet $address with public key $publicKey for txHash ${request.fromTxHash}" }
+            val (projAddress, _) = getPublicIdentity(request.projectTxHash)
+            logger.info { "Project $projAddress for txHash ${request.projectTxHash}" }
+            val tx = projectService.generateWithdrawInvestmentTx(address, projAddress)
+            logger.info { "Successfully generateWithdrawInvestmentTx: $tx" }
+            responseObserver.onNext(convert(tx, publicKey))
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to generateWithdrawInvestmentTx" }
             responseObserver.onError(e)
         }
     }

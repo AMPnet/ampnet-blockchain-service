@@ -86,14 +86,16 @@ class OrganizationServiceImpl(
         organization: String,
         maxInvestmentPerUser: BigInteger,
         minInvestmentPerUser: BigInteger,
-        investmentCap: BigInteger
+        investmentCap: BigInteger,
+        endInvestmentTime: BigInteger
     ): RawTransaction {
         val function = Function(
                 "addProject",
                 listOf(
                         Uint256(maxInvestmentPerUser),
                         Uint256(minInvestmentPerUser),
-                        Uint256(investmentCap)
+                        Uint256(investmentCap),
+                        Uint256(endInvestmentTime)
                 ),
                 emptyList()
         )

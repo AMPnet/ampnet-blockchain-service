@@ -16,7 +16,8 @@ interface OrganizationService {
         organization: String,
         maxInvestmentPerUser: BigInteger,
         minInvestmentPerUser: BigInteger,
-        investmentCap: BigInteger
+        investmentCap: BigInteger,
+        endInvestmentTime: BigInteger
     ): RawTransaction
 
     fun isVerified(organization: String): Boolean

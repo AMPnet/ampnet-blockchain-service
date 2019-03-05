@@ -103,6 +103,25 @@ class ProjectServiceImpl(
         )
     }
 
+    override fun generateWithdrawInvestmentTx(from: String, project: String): RawTransaction {
+        val function = Function(
+                "withdrawInvestment",
+                emptyList(),
+                emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
+        val gasPriceResponse = web3j.ethGasPrice().send()
+
+        return RawTransaction.createTransaction(
+                txCountResponse.transactionCount,
+                gasPriceResponse.gasPrice,
+                BigInteger.valueOf(1000000),
+                project,
+                encodedFunction
+        )
+    }
+
     override fun getMaxInvestmentPerUser(project: String): BigInteger {
         val function = Function(
                 "maxInvestmentPerUser",

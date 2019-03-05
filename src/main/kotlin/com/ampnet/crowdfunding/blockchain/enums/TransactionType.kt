@@ -14,12 +14,12 @@ enum class TransactionType(val functionHash: String) {
     INVEST(EthUtilities.getFunctionHash("invest()")),
     TRANSFER(EthUtilities.getFunctionHash("transfer(address,uint256)")),
     ORG_ADD_MEMBER(EthUtilities.getFunctionHash("addMember(address)")),
-    ORG_ADD_PROJECT(EthUtilities.getFunctionHash("addProject(uint256,uint256,uint256)")),
+    ORG_ADD_PROJECT(EthUtilities.getFunctionHash("addProject(uint256,uint256,uint256,uint256)")),
     ORG_ACTIVATE(EthUtilities.getFunctionHash("activate()")),
     START_REVENUE_PAYOUT(EthUtilities.getFunctionHash("startRevenueSharesPayout(uint256)")),
     REVENUE_PAYOUT(EthUtilities.getFunctionHash("payoutRevenueShares()")),
-    SHARE_PAYOUT("SHARE_PAYOUT");
-
+    SHARE_PAYOUT("SHARE_PAYOUT"),
+    WITHDRAW_INVESTMENT(EthUtilities.getFunctionHash("withdrawInvestment()"));
 }
 
 object EthUtilities {

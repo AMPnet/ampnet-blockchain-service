@@ -23,6 +23,7 @@ enum TransactionType {
     START_REVENUE_PAYOUT = 12;
     REVENUE_PAYOUT = 13;
     SHARE_PAYOUT = 14;
+    WITHDRAW_INVESTMENT = 15;
 }
 
 //////// Cooperative contract messages ///////
@@ -128,6 +129,7 @@ message GenerateAddProjectTxRequest {
     uint64 maxInvestmentPerUser = 3;
     uint64 minInvestmentPerUser = 4;
     uint64 investmentCap = 5;
+    uint64 endInvestmentTime = 6;
 }
 
 message OrganizationVerifiedRequest {
@@ -169,6 +171,11 @@ message GenerateStartRevenuePayoutTxRequest {
 }
 
 message GeneratePayoutRevenueSharesTxRequest {
+    string fromTxHash = 1;
+    string projectTxHash = 2;
+}
+
+message GenerateWithdrawInvestmentTxRequest {
     string fromTxHash = 1;
     string projectTxHash = 2;
 }
@@ -303,6 +310,7 @@ service BlockchainService {
     rpc generateInvestTx(GenerateInvestTxRequest) returns (RawTxResponse);
     rpc generateStartRevenuePayoutTx(GenerateStartRevenuePayoutTxRequest) returns (RawTxResponse);
     rpc generatePayoutRevenueSharesTx(GeneratePayoutRevenueSharesTxRequest) returns (RawTxResponse);
+    rpc generateWithdrawInvestmentTx(GenerateWithdrawInvestmentTxRequest) returns (RawTxResponse);
     rpc generateWithdrawProjectFundsTx(GenerateWithdrawProjectFundsTx) returns (RawTxResponse);
     rpc getProjectMaxInvestmentPerUser(ProjectMaxInvestmentPerUserRequest) returns (ProjectMaxInvestmentPerUserResponse);
     rpc getProjectMinInvestmentPerUser(ProjectMinInvestmentPerUserRequest) returns (ProjectMinInvestmentPerUserResponse);

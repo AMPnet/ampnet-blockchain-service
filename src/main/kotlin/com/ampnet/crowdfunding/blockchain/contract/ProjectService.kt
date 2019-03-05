@@ -11,6 +11,8 @@ interface ProjectService {
 
     fun generatePayoutRevenueSharesTx(from: String, project: String): RawTransaction
 
+    fun generateWithdrawInvestmentTx(from: String, project: String): RawTransaction
+
     fun generateWithdrawTx(
         from: String,
         project: String,
@@ -28,5 +30,4 @@ interface ProjectService {
     fun getTotalInvestmentForUser(project: String, user: String): BigInteger
 
     fun isCompletelyFunded(project: String): Boolean
-
 }
