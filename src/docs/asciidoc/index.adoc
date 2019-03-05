@@ -1,0 +1,14 @@
+= AMPnet Blockchain service API documentation
+:toc: left
+:sectnums:
+:toclevels: 2
+:source-highlighter: prettify
+:docinfo: shared
+
+== Transactions
+
+=== Get transactions for hash
+.Request
+include::{snippets}/TransactionControllerTest/mustBeAbleToGetTransactionResponse/http-request.adoc[]
+.Response
+include::{snippets}/TransactionControllerTest/mustBeAbleToGetTransactionResponse/http-response.adoc[]
