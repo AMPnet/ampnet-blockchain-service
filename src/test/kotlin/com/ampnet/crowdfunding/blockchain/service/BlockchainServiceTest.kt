@@ -697,7 +697,7 @@ class BlockchainServiceTest : TestBase() {
                     bobTxHash,
                     accounts.bob,
                     testProject,
-                    Instant.now().plusSeconds(2).epochSecond // Expires in 2 seconds, Alice has to invest before!
+                    Instant.now().plusSeconds(4).epochSecond // Expires in 2 seconds, Alice has to invest before!
             )
 
             // Alice invests
@@ -706,7 +706,7 @@ class BlockchainServiceTest : TestBase() {
         }
 
         verify("Alice can withdraw her investment.") {
-            Thread.sleep(2000) // Wait for project to expire
+            Thread.sleep(5000) // Wait for project to expire
             withdrawInvestmentTxHash = withdrawInvestment(projTxHash, aliceTxHash, accounts.alice)
             assertThat(getBalance(aliceTxHash)).isEqualTo(initialAliceBalance)
         }
