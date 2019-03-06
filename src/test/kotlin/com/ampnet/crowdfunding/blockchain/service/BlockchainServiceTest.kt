@@ -16,10 +16,10 @@ import com.ampnet.crowdfunding.proto.Empty
 import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
-import com.ampnet.crowdfunding.proto.GenerateApproveInvestmentTxRequest
+import com.ampnet.crowdfunding.proto.GenerateInvestmentTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveWithdrawTxRequest
 import com.ampnet.crowdfunding.proto.GenerateBurnFromTxRequest
-import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
+import com.ampnet.crowdfunding.proto.GenerateConfirmInvestmentTxRequest
 import com.ampnet.crowdfunding.proto.GenerateMintTxRequest
 import com.ampnet.crowdfunding.proto.GeneratePayoutRevenueSharesTxRequest
 import com.ampnet.crowdfunding.proto.GenerateStartRevenuePayoutTxRequest
@@ -959,8 +959,8 @@ class BlockchainServiceTest : TestBase() {
     }
 
     private fun approveInvestment(fromTxHash: String, from: Credentials, amount: Long, projectTxHash: String): String {
-        val approveTx = grpc.generateApproveInvestmentTx(
-                GenerateApproveInvestmentTxRequest.newBuilder()
+        val approveTx = grpc.generateInvestmentTx(
+                GenerateInvestmentTxRequest.newBuilder()
                         .setFromTxHash(fromTxHash)
                         .setProjectTxHash(projectTxHash)
                         .setAmount(amount)
@@ -975,8 +975,8 @@ class BlockchainServiceTest : TestBase() {
     }
 
     private fun invest(projectTxHash: String, investorTxHash: String, investor: Credentials): String {
-        val investTx = grpc.generateInvestTx(
-                GenerateInvestTxRequest.newBuilder()
+        val investTx = grpc.generateConfirmInvestmentTx(
+                GenerateConfirmInvestmentTxRequest.newBuilder()
                         .setFromTxHash(investorTxHash)
                         .setProjectTxHash(projectTxHash)
                         .build()
