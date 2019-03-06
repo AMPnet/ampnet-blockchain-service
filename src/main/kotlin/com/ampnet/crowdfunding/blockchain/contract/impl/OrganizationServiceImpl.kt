@@ -86,14 +86,16 @@ class OrganizationServiceImpl(
         organization: String,
         maxInvestmentPerUser: BigInteger,
         minInvestmentPerUser: BigInteger,
-        investmentCap: BigInteger
+        investmentCap: BigInteger,
+        endInvestmentTime: BigInteger
     ): RawTransaction {
         val function = Function(
                 "addProject",
                 listOf(
                         Uint256(maxInvestmentPerUser),
                         Uint256(minInvestmentPerUser),
-                        Uint256(investmentCap)
+                        Uint256(investmentCap),
+                        Uint256(endInvestmentTime)
                 ),
                 emptyList()
         )
@@ -112,7 +114,7 @@ class OrganizationServiceImpl(
 
     override fun isVerified(organization: String): Boolean {
         val function = Function(
-                "isVerified",
+                "verifiedByCoop",
                 emptyList(),
                 listOf(TypeReference.create(Bool::class.java))
         )
@@ -132,9 +134,9 @@ class OrganizationServiceImpl(
         return returnValues[0].value as Boolean
     }
 
-    override fun getAllProjects(organization: String): List<String> {
+    override fun getProjects(organization: String): List<String> {
         val function = Function(
-                "getAllProjects",
+                "getProjects",
                 emptyList(),
                 listOf(object : TypeReference<DynamicArray<Address>>() {})
         )

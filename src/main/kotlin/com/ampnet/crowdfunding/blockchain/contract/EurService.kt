@@ -9,11 +9,9 @@ interface EurService {
 
     fun generateBurnFromTx(from: String, burnFrom: String, amount: BigInteger): RawTransaction
 
-    fun generateApproveTx(from: String, amount: BigInteger): RawTransaction
+    fun generateApproveTx(from: String, spender: String, amount: BigInteger): RawTransaction
 
     fun balanceOf(address: String): BigInteger
-
-    fun generateInvestTx(from: String, project: String, amount: BigInteger): RawTransaction
 
     fun generateTransferTx(from: String, to: String, amount: BigInteger): RawTransaction
 }
