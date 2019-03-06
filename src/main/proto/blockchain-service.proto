@@ -87,7 +87,7 @@ message GenerateApproveWithdrawTxRequest {
     uint64 amount = 2;
 }
 
-message GenerateApproveInvestmentTxRequest {
+message GenerateInvestmentTxRequest {
     string fromTxHash = 1;
     string projectTxHash = 2;
     uint64 amount = 3;
@@ -159,7 +159,7 @@ message OrganizationMembersResponse {
 
 ///////// Project contract ///////////////
 
-message GenerateInvestTxRequest {
+message GenerateConfirmInvestmentTxRequest {
     string fromTxHash = 1;
     string projectTxHash = 2;
 }
@@ -288,7 +288,7 @@ service BlockchainService {
     rpc generateMintTx(GenerateMintTxRequest) returns (RawTxResponse);
     rpc generateBurnFromTx(GenerateBurnFromTxRequest) returns (RawTxResponse);
     rpc generateApproveWithdrawTx(GenerateApproveWithdrawTxRequest) returns (RawTxResponse);
-    rpc generateApproveInvestmentTx(GenerateApproveInvestmentTxRequest) returns (RawTxResponse);
+    rpc generateInvestmentTx(GenerateInvestmentTxRequest) returns (RawTxResponse);
     rpc generateCancelPendingInvestmentTx(GenerateCancelPendingInvestmentTxRequest) returns (RawTxResponse);
     rpc getBalance(BalanceRequest) returns (BalanceResponse);
     rpc generateTransferTx(GenerateTransferTxRequest) returns (RawTxResponse);
@@ -307,7 +307,7 @@ service BlockchainService {
 
     // Project
 
-    rpc generateInvestTx(GenerateInvestTxRequest) returns (RawTxResponse);
+    rpc generateConfirmInvestmentTx(GenerateConfirmInvestmentTxRequest) returns (RawTxResponse);
     rpc generateStartRevenuePayoutTx(GenerateStartRevenuePayoutTxRequest) returns (RawTxResponse);
     rpc generatePayoutRevenueSharesTx(GeneratePayoutRevenueSharesTxRequest) returns (RawTxResponse);
     rpc generateWithdrawInvestmentTx(GenerateWithdrawInvestmentTxRequest) returns (RawTxResponse);

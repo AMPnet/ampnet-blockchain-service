@@ -22,10 +22,10 @@ import com.ampnet.crowdfunding.proto.Empty
 import com.ampnet.crowdfunding.proto.GenerateAddMemberTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddOrganizationTxRequest
 import com.ampnet.crowdfunding.proto.GenerateAddProjectTxRequest
-import com.ampnet.crowdfunding.proto.GenerateApproveInvestmentTxRequest
+import com.ampnet.crowdfunding.proto.GenerateInvestmentTxRequest
 import com.ampnet.crowdfunding.proto.GenerateApproveWithdrawTxRequest
 import com.ampnet.crowdfunding.proto.GenerateCancelPendingInvestmentTxRequest
-import com.ampnet.crowdfunding.proto.GenerateInvestTxRequest
+import com.ampnet.crowdfunding.proto.GenerateConfirmInvestmentTxRequest
 import com.ampnet.crowdfunding.proto.GeneratePayoutRevenueSharesTxRequest
 import com.ampnet.crowdfunding.proto.GenerateStartRevenuePayoutTxRequest
 import com.ampnet.crowdfunding.proto.GenerateWithdrawOrganizationFundsTxRequest
@@ -232,8 +232,8 @@ class BlockchainService(
         }
     }
 
-    override fun generateApproveInvestmentTx(request: GenerateApproveInvestmentTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-        logger.info { "Received request generateApproveInvestmentTx: $request" }
+    override fun generateInvestmentTx(request: GenerateInvestmentTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request generateInvestmentTx: $request" }
         try {
             val (address, pubKey) = getPublicIdentity(request.fromTxHash)
             logger.info { "Approve investment from wallet $address with public key $pubKey" }
@@ -244,11 +244,11 @@ class BlockchainService(
                     projectAddress,
                     eurToToken(request.amount)
             )
-            logger.info { "Successfully generateApproveInvestmentTx: $tx" }
+            logger.info { "Successfully generateInvestmentTx: $tx" }
             responseObserver.onNext(convert(tx, pubKey))
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            logger.error(e) { "Failed to generateApproveInvestmentTx" }
+            logger.error(e) { "Failed to generateInvestmentTx" }
             responseObserver.onError(e)
         }
     }
@@ -292,8 +292,8 @@ class BlockchainService(
         }
     }
 
-    override fun generateInvestTx(request: GenerateInvestTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
-        logger.info { "Received request to generateInvestTx: $request" }
+    override fun generateConfirmInvestmentTx(request: GenerateConfirmInvestmentTxRequest, responseObserver: StreamObserver<RawTxResponse>) {
+        logger.info { "Received request to generateConfirmInvestmentTx: $request" }
         try {
             val (wallet, pubKey) = getPublicIdentity(request.fromTxHash)
             logger.debug { "Address $wallet for hash ${request.fromTxHash}" }
@@ -301,11 +301,11 @@ class BlockchainService(
             val (project, _) = getPublicIdentity(request.projectTxHash)
             logger.debug { "Project address $project for hash ${request.projectTxHash}" }
             val tx = projectService.generateInvestTx(wallet, project)
-            logger.info { "Successfully generateInvestTx: $tx" }
+            logger.info { "Successfully generateConfirmInvestmentTx: $tx" }
             responseObserver.onNext(convert(tx, pubKey))
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            logger.error(e) { "Failed to generateInvestTx" }
+            logger.error(e) { "Failed to generateConfirmInvestmentTx" }
             responseObserver.onError(e)
         }
     }
