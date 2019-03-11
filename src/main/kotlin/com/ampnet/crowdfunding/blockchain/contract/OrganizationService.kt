@@ -16,12 +16,13 @@ interface OrganizationService {
         organization: String,
         maxInvestmentPerUser: BigInteger,
         minInvestmentPerUser: BigInteger,
-        investmentCap: BigInteger
+        investmentCap: BigInteger,
+        endInvestmentTime: BigInteger
     ): RawTransaction
 
     fun isVerified(organization: String): Boolean
 
-    fun getAllProjects(organization: String): List<String>
+    fun getProjects(organization: String): List<String>
 
     fun getMembers(organization: String): List<String>
 }

@@ -1,7 +1,7 @@
 package com.ampnet.crowdfunding.blockchain.contract.impl
 
 import com.ampnet.crowdfunding.blockchain.config.ApplicationProperties
-import com.ampnet.crowdfunding.blockchain.contract.AmpnetService
+import com.ampnet.crowdfunding.blockchain.contract.CoopService
 import org.springframework.stereotype.Service
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
@@ -17,10 +17,10 @@ import org.web3j.protocol.core.methods.request.Transaction
 import java.math.BigInteger
 
 @Service
-class AmpnetServiceImpl(
+class CoopServiceImpl(
     val applicationProperties: ApplicationProperties,
     val web3j: Web3j
-) : AmpnetService {
+) : CoopService {
 
     override fun generateAddWalletTx(from: String, wallet: String): RawTransaction {
         val function = Function(
@@ -31,13 +31,13 @@ class AmpnetServiceImpl(
         val encodedFunction = FunctionEncoder.encode(function)
         val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
         val gasPriceResponse = web3j.ethGasPrice().send()
-        val ampnetAddress = applicationProperties.contracts.ampnetAddress
+        val coopAddress = applicationProperties.contracts.coopAddress
 
         return RawTransaction.createTransaction(
                 txCountResponse.transactionCount,
                 gasPriceResponse.gasPrice,
                 BigInteger.valueOf(1000000),
-                ampnetAddress,
+                coopAddress,
                 encodedFunction
         )
     }
@@ -51,30 +51,30 @@ class AmpnetServiceImpl(
         val encodedFunction = FunctionEncoder.encode(function)
         val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
         val gasPriceResponse = web3j.ethGasPrice().send()
-        val ampnetAddress = applicationProperties.contracts.ampnetAddress
+        val coopAddress = applicationProperties.contracts.coopAddress
 
         return RawTransaction.createTransaction(
                 txCountResponse.transactionCount,
                 gasPriceResponse.gasPrice,
                 BigInteger.valueOf(4000000),
-                ampnetAddress,
+                coopAddress,
                 encodedFunction
         )
     }
 
-    override fun getAllOrganizations(): List<String> {
+    override fun getOrganizations(): List<String> {
         val function = Function(
-                "getAllOrganizations",
+                "getOrganizations",
                 emptyList(),
                 listOf(object : TypeReference<DynamicArray<Address>>() {})
         )
         val encodedFunction = FunctionEncoder.encode(function)
-        val ampnetAddress = applicationProperties.contracts.ampnetAddress
+        val coopAddress = applicationProperties.contracts.coopAddress
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
-                        ampnetAddress,
-                        ampnetAddress,
+                        coopAddress,
+                        coopAddress,
                         encodedFunction
                 ),
                 DefaultBlockParameterName.LATEST
@@ -91,12 +91,12 @@ class AmpnetServiceImpl(
                 listOf(TypeReference.create(Bool::class.java))
         )
         val encodedFunction = FunctionEncoder.encode(function)
-        val ampnetAddress = applicationProperties.contracts.ampnetAddress
+        val coopAddress = applicationProperties.contracts.coopAddress
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
                         wallet,
-                        ampnetAddress,
+                        coopAddress,
                         encodedFunction
                 ),
                 DefaultBlockParameterName.LATEST
@@ -107,19 +107,19 @@ class AmpnetServiceImpl(
         return returnValues[0].value as Boolean
     }
 
-    override fun organizationExists(organization: String): Boolean {
+    override fun isOrganizationActive(organization: String): Boolean {
         val function = Function(
-                "organizationExists",
+                "isOrganizationActive",
                 listOf(Address(organization)),
                 listOf(TypeReference.create(Bool::class.java))
         )
         val encodedFunction = FunctionEncoder.encode(function)
-        val ampnetAddress = applicationProperties.contracts.ampnetAddress
+        val coopAddress = applicationProperties.contracts.coopAddress
 
         val response = web3j.ethCall(
                 Transaction.createEthCallTransaction(
                         organization,
-                        ampnetAddress,
+                        coopAddress,
                         encodedFunction
                 ),
                 DefaultBlockParameterName.LATEST

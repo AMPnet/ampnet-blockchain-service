@@ -5,20 +5,19 @@ import java.math.BigInteger
 
 interface ProjectService {
 
-    fun generateWithdrawFundsTx(
+    fun generateInvestTx(from: String, project: String): RawTransaction
+
+    fun generateStartRevenuePayoutTx(from: String, project: String, revenue: BigInteger): RawTransaction
+
+    fun generatePayoutRevenueSharesTx(from: String, project: String): RawTransaction
+
+    fun generateWithdrawInvestmentTx(from: String, project: String): RawTransaction
+
+    fun generateWithdrawTx(
         from: String,
         project: String,
         amount: BigInteger
     ): RawTransaction
-
-    fun generateTransferOwnershipTx(
-        from: String,
-        project: String,
-        to: String,
-        amount: BigInteger
-    ): RawTransaction
-
-    fun generateCancelInvestmentTx(from: String, project: String, amount: BigInteger): RawTransaction
 
     fun getMaxInvestmentPerUser(project: String): BigInteger
 
@@ -30,5 +29,5 @@ interface ProjectService {
 
     fun getTotalInvestmentForUser(project: String, user: String): BigInteger
 
-    fun isLockedForInvestments(project: String): Boolean
+    fun isCompletelyFunded(project: String): Boolean
 }

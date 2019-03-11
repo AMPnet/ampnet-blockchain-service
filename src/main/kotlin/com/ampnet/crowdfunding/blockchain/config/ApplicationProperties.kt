@@ -15,10 +15,10 @@ class Web3jProperties {
     lateinit var clientAddress: String
 }
 class ContractsProperties {
-    lateinit var ampnetAddress: String
+    lateinit var coopAddress: String
     lateinit var eurAddress: String
 }
 class AccountsProperties {
-    lateinit var ampnetPrivateKey: String
+    lateinit var coopPrivateKey: String
     lateinit var issuingAuthorityAddress: String
 }

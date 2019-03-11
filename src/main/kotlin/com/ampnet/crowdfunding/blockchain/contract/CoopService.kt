@@ -2,15 +2,15 @@ package com.ampnet.crowdfunding.blockchain.contract
 
 import org.web3j.crypto.RawTransaction
 
-interface AmpnetService {
+interface CoopService {
 
     fun generateAddWalletTx(from: String, wallet: String): RawTransaction
 
     fun generateAddOrganizationTx(from: String): RawTransaction
 
-    fun getAllOrganizations(): List<String>
+    fun getOrganizations(): List<String>
 
-    fun organizationExists(organization: String): Boolean
+    fun isOrganizationActive(organization: String): Boolean
 
     fun isWalletActive(wallet: String): Boolean
 }

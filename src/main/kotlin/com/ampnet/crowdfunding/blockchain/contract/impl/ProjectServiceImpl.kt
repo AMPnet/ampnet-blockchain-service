@@ -22,14 +22,71 @@ class ProjectServiceImpl(
     val properties: ApplicationProperties
 ) : ProjectService {
 
-    override fun generateWithdrawFundsTx(
+    override fun generateInvestTx(from: String, project: String): RawTransaction {
+        val function = Function(
+                "invest",
+                emptyList(),
+                emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
+        val gasPriceResponse = web3j.ethGasPrice().send()
+
+        return RawTransaction.createTransaction(
+                txCountResponse.transactionCount,
+                gasPriceResponse.gasPrice,
+                BigInteger.valueOf(1000000),
+                project,
+                encodedFunction
+        )
+    }
+
+    override fun generateStartRevenuePayoutTx(from: String, project: String, revenue: BigInteger): RawTransaction {
+        val function = Function(
+                "startRevenueSharesPayout",
+                listOf(Uint256(revenue)),
+                emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
+        val gasPriceResponse = web3j.ethGasPrice().send()
+
+        return RawTransaction.createTransaction(
+                txCountResponse.transactionCount,
+                gasPriceResponse.gasPrice,
+                BigInteger.valueOf(1000000),
+                project,
+                encodedFunction
+        )
+    }
+
+    override fun generatePayoutRevenueSharesTx(from: String, project: String): RawTransaction {
+        val function = Function(
+                "payoutRevenueShares",
+                emptyList(),
+                emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
+        val gasPriceResponse = web3j.ethGasPrice().send()
+
+        return RawTransaction.createTransaction(
+                txCountResponse.transactionCount,
+                gasPriceResponse.gasPrice,
+                BigInteger.valueOf(1000000),
+                project,
+                encodedFunction
+        )
+    }
+
+    override fun generateWithdrawTx(
         from: String,
         project: String,
         amount: BigInteger
     ): RawTransaction {
         val tokenIssuer = properties.accounts.issuingAuthorityAddress
         val function = Function(
-                "withdrawFunds",
+                "withdraw",
                 listOf(Address(tokenIssuer), Uint256(amount)),
                 emptyList()
         )
@@ -46,38 +103,10 @@ class ProjectServiceImpl(
         )
     }
 
-    override fun generateTransferOwnershipTx(
-        from: String,
-        project: String,
-        to: String,
-        amount: BigInteger
-    ): RawTransaction {
+    override fun generateWithdrawInvestmentTx(from: String, project: String): RawTransaction {
         val function = Function(
-                "transferOwnership",
-                listOf(Address(to), Uint256(amount)),
-                emptyList()
-        )
-        val encodedFunction = FunctionEncoder.encode(function)
-        val txCountResponse = web3j.ethGetTransactionCount(from, DefaultBlockParameterName.LATEST).send()
-        val gasPriceResponse = web3j.ethGasPrice().send()
-
-        return RawTransaction.createTransaction(
-                txCountResponse.transactionCount,
-                gasPriceResponse.gasPrice,
-                BigInteger.valueOf(1000000),
-                project,
-                encodedFunction
-        )
-    }
-
-    override fun generateCancelInvestmentTx(
-        from: String,
-        project: String,
-        amount: BigInteger
-    ): RawTransaction {
-        val function = Function(
-                "cancelInvestment",
-                listOf(Uint256(amount)),
+                "withdrawInvestment",
+                emptyList(),
                 emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)
@@ -95,7 +124,7 @@ class ProjectServiceImpl(
 
     override fun getMaxInvestmentPerUser(project: String): BigInteger {
         val function = Function(
-                "getMaxInvestmentPerUser",
+                "maxInvestmentPerUser",
                 emptyList(),
                 listOf(TypeReference.create(Uint256::class.java))
         )
@@ -117,7 +146,7 @@ class ProjectServiceImpl(
 
     override fun getMinInvestmentPerUser(project: String): BigInteger {
         val function = Function(
-                "getMinInvestmentPerUser",
+                "minInvestmentPerUser",
                 emptyList(),
                 listOf(TypeReference.create(Uint256::class.java))
         )
@@ -139,7 +168,7 @@ class ProjectServiceImpl(
 
     override fun getInvestmentCap(project: String): BigInteger {
         val function = Function(
-                "getInvestmentCap",
+                "investmentCap",
                 emptyList(),
                 listOf(TypeReference.create(Uint256::class.java))
         )
@@ -161,7 +190,7 @@ class ProjectServiceImpl(
 
     override fun getCurrentTotalInvestment(project: String): BigInteger {
         val function = Function(
-                "getCurrentTotalInvestment",
+                "totalFundsRaised",
                 emptyList(),
                 listOf(TypeReference.create(Uint256::class.java))
         )
@@ -183,7 +212,7 @@ class ProjectServiceImpl(
 
     override fun getTotalInvestmentForUser(project: String, user: String): BigInteger {
         val function = Function(
-                "getTotalInvestmentForUser",
+                "investments",
                 listOf(Address(user)),
                 listOf(TypeReference.create(Uint256::class.java))
         )
@@ -203,9 +232,9 @@ class ProjectServiceImpl(
         return returnValues[0].value as BigInteger
     }
 
-    override fun isLockedForInvestments(project: String): Boolean {
+    override fun isCompletelyFunded(project: String): Boolean {
         val function = Function(
-                "isLockedForInvestments",
+                "isCompletelyFunded",
                 emptyList(),
                 listOf(TypeReference.create(Bool::class.java))
         )
