@@ -9,3 +9,8 @@ CREATE USER blockchain WITH PASSWORD 'password';
 
 DROP USER IF EXISTS blockchain_test;
 CREATE USER blockchain_test WITH PASSWORD 'password';
+
+DROP ROLE IF EXISTS bc_role;
+CREATE ROLE bc_role;
+GRANT bc_role TO blockchain;
+GRANT bc_role TO blockchain_test;

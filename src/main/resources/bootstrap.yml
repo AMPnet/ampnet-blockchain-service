@@ -1,0 +1,22 @@
+spring:
+    application:
+        name: blockchain-service
+    cloud:
+        vault:
+            enabled: false
+
+---
+spring:
+    profiles: dev
+    cloud:
+        vault:
+            fail-fast: true
+            enabled: true
+            scheme: http
+            host: outside
+            port: 8200
+            authentication: token
+            token: ${VAULT_TOKEN}
+            database:
+                enabled: true
+                role: blockchain_role
