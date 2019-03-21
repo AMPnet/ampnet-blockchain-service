@@ -1,18 +1,12 @@
-version: 2
+version: 2.1
 
-jobs:
-  test:
+executors:
+  blockchain-executor:
     docker:
       - image: circleci/openjdk:8-jdk
+      - image: circleci/postgres:10.7-ram
         environment:
-          TEST_DATABASE_URL: postgresql://blockchain_test@localhost:5432/blockchain_test
-
-      - image: circleci/postgres:10.5-ram
-        environment:
-          POSTGRES_USER: blockchain_test
-          POSTGRES_DB: blockchain_test
-          POSTGRES_PASSWORD: password
-
+          POSTGRES_USER: postgres
       - image: trufflesuite/ganache-cli:latest
         command: [
           "--account=0x4843d7e2658482c2cab8cf79576e4112d156fd87dda1e08468b51fe34fd08569, 100000000000000000000",
@@ -21,14 +15,15 @@ jobs:
           "--account=0x215d6c308a70b5b74081ec71f7d67495b0c3c88bf0ba119b8eeb022cf2c20251, 100000000000000000000",
           "--account=0xe57787b6142f659d759fcbe2ecda7e49f105fd61b10f73d980ab1964aef71132, 100000000000000000000"
         ]
-
     working_directory: ~/repo
-
     environment:
-      # Customize the JVM maximum heap limit
       JVM_OPTS: -Xmx3200m
       TERM: dumb
 
+
+jobs:
+  test:
+    executor: blockchain-executor
     steps:
       - checkout
 
@@ -44,6 +39,9 @@ jobs:
           paths:
             - ~/.gradle
           key: v1-dependencies-{{ checksum "build.gradle" }}
+
+      - run: sudo apt install -y postgresql-client || true
+      - run: psql -h localhost -U postgres -a -f etc/flyway/init/create_databases.sql
 
       - run:
           name: Run all tests
@@ -56,33 +54,7 @@ jobs:
           command: gradle asciidoctor
 
   deploy:
-    docker:
-      - image: circleci/openjdk:8-jdk
-        environment:
-          TEST_DATABASE_URL: postgresql://blockchain_test@localhost:5432/blockchain_test
-
-      - image: circleci/postgres:10.5-ram
-        environment:
-          POSTGRES_USER: blockchain_test
-          POSTGRES_DB: blockchain_test
-          POSTGRES_PASSWORD: password
-
-      - image: trufflesuite/ganache-cli:latest
-        command: [
-          "--account=0x4843d7e2658482c2cab8cf79576e4112d156fd87dda1e08468b51fe34fd08569, 100000000000000000000",
-          "--account=0xc0c85e6b373d090048676f0c82542cb3bb6793491450f478b147614262718cdd, 100000000000000000000",
-          "--account=0xe8c7e2bdd82569189d73cb618391973c8f52d8ba651446a00a87cc67c8219781, 100000000000000000000",
-          "--account=0x215d6c308a70b5b74081ec71f7d67495b0c3c88bf0ba119b8eeb022cf2c20251, 100000000000000000000",
-          "--account=0xe57787b6142f659d759fcbe2ecda7e49f105fd61b10f73d980ab1964aef71132, 100000000000000000000"
-        ]
-
-    working_directory: ~/repo
-
-    environment:
-      # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx3200m
-      TERM: dumb
-
+    executor: blockchain-executor
     steps:
       - checkout
 
@@ -98,6 +70,9 @@ jobs:
           paths:
             - ~/.gradle
           key: v1-dependencies-{{ checksum "build.gradle" }}
+
+      - run: sudo apt install -y postgresql-client || true
+      - run: psql -h localhost -U postgres -a -f etc/flyway/init/create_databases.sql
 
       - run:
           name: Build
@@ -111,7 +86,7 @@ jobs:
           command: gradle jib
 
 workflows:
-  version: 2
+  version: 2.1
   test:
     jobs:
       - test:
