@@ -13,6 +13,7 @@ import com.ampnet.crowdfunding.blockchain.service.TransactionService
 import com.ampnet.crowdfunding.blockchain.service.WalletService
 import com.ampnet.crowdfunding.blockchain.util.AbiUtils
 import io.grpc.Status
+import mu.KLogging
 import org.springframework.stereotype.Service
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.SignedRawTransaction
@@ -36,6 +37,8 @@ class TransactionServiceImpl(
         AMPNET, EUR, ORG, PROJECT;
     }
 
+    companion object : KLogging()
+
     @Transactional
     override fun postAndCacheTransaction(txData: String, txType: TransactionType): Transaction {
 
@@ -48,7 +51,13 @@ class TransactionServiceImpl(
         val contractType = getTargetContractType(txData)
 
         // Broadcast transaction to network
-        val txHash = web3j.ethSendRawTransaction(txData).send().transactionHash
+        val result = web3j.ethSendRawTransaction(txData).send()
+        if (result.hasError()) {
+            throw Status.ABORTED
+                    .withDescription("Failed to post transaction: ${result.error.message}")
+                    .asRuntimeException()
+        }
+        val txHash = result.transactionHash
         val tx = persistTransaction(txData, txHash, contractType)
 
         // Try to wait for mined event and update tx right away (if fails scheduled job will handle it anyway)
@@ -387,9 +396,13 @@ class TransactionServiceImpl(
         }
 
         // update amount (if tx type was investment)
-        if (tx.type == TransactionType.INVEST) {
-            val amount = AbiUtils.decodeAmount(txReceipt.logs[1].data)
-            tx.amount = amount
+        if (tx.type == TransactionType.INVEST && tx.state == TransactionState.MINED) {
+            if (txReceipt.logs.size > 1) {
+                val amount = AbiUtils.decodeAmount(txReceipt.logs[1].data)
+                tx.amount = amount
+            } else {
+                logger.info { "Invest transaction ${tx.hash} mined but could not parse event log to get amount." }
+            }
         } else if (tx.type == TransactionType.REVENUE_PAYOUT) {
             txReceipt.logs.forEachIndexed { index, log ->
                 if (index % 2 == 0) {
