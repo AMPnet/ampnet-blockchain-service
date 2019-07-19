@@ -61,9 +61,15 @@ class TransactionServiceImpl(
         val tx = persistTransaction(txData, txHash, contractType)
 
         // Try to wait for mined event and update tx right away (if fails scheduled job will handle it anyway)
-        web3j.ethGetTransactionReceipt(txHash).flowable().subscribe { receipt ->
-            updateTransactionState(tx, receipt)
-        }
+        web3j.ethGetTransactionReceipt(txHash).flowable().subscribe(
+                { receipt ->
+                    updateTransactionState(tx, receipt)
+                },
+                { error ->
+                    logger.warn { "Unable to get receipt for transaction with hash $txHash" }
+                    logger.warn { error }
+                }
+        )
 
         return tx
     }
