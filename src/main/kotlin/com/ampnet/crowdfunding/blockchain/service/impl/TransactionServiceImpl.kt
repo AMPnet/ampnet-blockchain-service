@@ -401,7 +401,7 @@ class TransactionServiceImpl(
                 val amount = AbiUtils.decodeAmount(txReceipt.logs[1].data)
                 tx.amount = amount
             } else {
-                logger.info { "Invest transaction ${tx.hash} mined but could not parse event log to get amount." }
+                logger.warn { "Invest transaction ${tx.hash} mined but could not parse event log to get amount." }
             }
         } else if (tx.type == TransactionType.REVENUE_PAYOUT) {
             txReceipt.logs.forEachIndexed { index, log ->
